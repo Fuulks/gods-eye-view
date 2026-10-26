@@ -3076,5 +3076,7 @@
   "Vigilance unknown": "Vigilancia desconocida",
   "Malformed warning-zone response": "Respuesta de zonas de alerta con formato incorrecto",
   "Reference Maps": "Mapas de referencia",
-  "European electricity load and day-ahead prices (Transparency Platform)": "Carga eléctrica europea y precios day-ahead (Plataforma de Transparencia)"
+  "European electricity load and day-ahead prices (Transparency Platform)": "Carga eléctrica europea y precios day-ahead (Plataforma de Transparencia)",
+  "Scheduled timetables and live vehicle positions from the global GTFS catalog. The key is required.": "Horarios programados y posiciones de vehículos en directo del catálogo GTFS mundial. La clave es obligatoria.",
+  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "Próximas salidas, mensajes de tráfico y datos de itinerarios de la región de París desde el catálogo de APIs de PRIM. La clave es obligatoria."
 }

@@ -145,6 +145,26 @@ export const KEY_SETUP_KEYS = Object.freeze([
     envVars: Object.freeze(['LL2_API_TOKEN']),
     tier: 'paid',
   }),
+  Object.freeze({
+    id: 'gtfs',
+    title: 'GTFS / GTFS-REALTIME', // i18n-ignore: provider product name
+    unlocks: msg(
+      'Scheduled timetables and live vehicle positions from the global GTFS catalog. The key is required.',
+    ),
+    getUrl: 'https://mobilitydatabase.org/sign-up',
+    envVars: Object.freeze(['GTFS_API_KEY']),
+    tier: 'free',
+  }),
+  Object.freeze({
+    id: 'idfm-prim',
+    title: 'ÎLE-DE-FRANCE MOBILITÉS PRIM', // i18n-ignore: provider product name
+    unlocks: msg(
+      'Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.',
+    ),
+    getUrl: 'https://prim.iledefrance-mobilites.fr/en/apis',
+    envVars: Object.freeze(['IDFM_PRIM_API_KEY']),
+    tier: 'free',
+  }),
 ]);
 
 /** Hostnames a Provider Settings request may arrive under or originate from. */
