@@ -597,8 +597,18 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
     disposition: 'enabled+options',
     optionOwner: 'cctv',
   }),
+  Object.freeze({
+    id: 'copernicus-ems',
+    token: '9',
+    disposition: 'enabled-only',
+  }),
   Object.freeze({ id: 'directions', token: 'n', disposition: 'enabled-only' }),
   Object.freeze({ id: 'earthquakes', token: 'e', disposition: 'enabled-only' }),
+  Object.freeze({
+    id: 'entsoe-grid',
+    token: '8',
+    disposition: 'enabled-only',
+  }),
   Object.freeze({
     id: 'fire-perimeters',
     token: '2',
@@ -613,6 +623,11 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
   Object.freeze({
     id: 'gnss-integrity',
     token: '3',
+    disposition: 'enabled-only',
+  }),
+  Object.freeze({
+    id: 'ign-geoplateforme',
+    token: '00',
     disposition: 'enabled-only',
   }),
   Object.freeze({ id: 'local-dams', token: 'q', disposition: 'enabled-only' }),
@@ -667,6 +682,11 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
     optionOwner: 'satellites',
   }),
   Object.freeze({
+    id: 'sncf-stations',
+    token: '6',
+    disposition: 'enabled-only',
+  }),
+  Object.freeze({
     id: 'street-level',
     token: '0',
     disposition: 'enabled+options',
@@ -684,6 +704,11 @@ export const LAYER_STATE_REGISTRY = Object.freeze([
     optionOwner: 'traffic',
   }),
   Object.freeze({ id: 'transit', token: 'j', disposition: 'enabled-only' }),
+  Object.freeze({
+    id: 'vigicrues-floods',
+    token: '7',
+    disposition: 'enabled-only',
+  }),
   Object.freeze({
     id: 'weather-cyclones',
     token: 'y',
