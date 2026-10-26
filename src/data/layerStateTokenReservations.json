@@ -30,5 +30,10 @@
   ["weather-lightning", "l"],
   ["weather-radar", "v"],
   ["weather-satellite", "o"],
-  ["wind", "k"]
+  ["wind", "k"],
+  ["sncf-stations", "6"],
+  ["vigicrues-floods", "7"],
+  ["entsoe-grid", "8"],
+  ["copernicus-ems", "9"],
+  ["ign-geoplateforme", "00"]
 ]

@@ -50,6 +50,11 @@ export const CATALOG_SOURCE_CONTRACTS = Object.freeze({
   'gnss-integrity': contract(['gnss-integrity'], ['getSnapshot']),
   's2-ghostmaps': contract(['s2-ghostmaps'], ['getCatalog', 'getFile']),
   cables: contract(['telegeography-submarine-cables'], ['fetch']),
+  'sncf-stations': contract(['sncf-stations'], ['getSnapshot']),
+  'vigicrues-floods': contract(['vigicrues-floods'], ['getSnapshot']),
+  'ign-geoplateforme': contract(['ign-geoplateforme'], ['getDescriptor']),
+  'entsoe-grid': contract(['entsoe-grid'], ['getSnapshot']),
+  'copernicus-ems': contract(['copernicus-ems'], ['getSnapshot']),
   transit: contract(['transit'], ['requestSnapshot', 'getHistory']),
 });
 

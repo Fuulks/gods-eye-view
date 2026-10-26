@@ -49,6 +49,7 @@ const PANEL_GROUPS = [
       'traffic',
       'transit',
       'bikeshare',
+      'sncf-stations',
     ],
   },
   {
@@ -63,6 +64,7 @@ const PANEL_GROUPS = [
       'local-datacenters',
       'telegeography-submarine-cables',
       'local-dams',
+      'entsoe-grid',
     ],
   },
   {
@@ -74,6 +76,7 @@ const PANEL_GROUPS = [
       'fire-perimeters',
       'gnss-integrity',
       's2-ghostmaps',
+      'copernicus-ems',
     ],
   },
   {
@@ -85,11 +88,16 @@ const PANEL_GROUPS = [
       'weather-satellite',
       'weather-lightning',
       'weather-cyclones',
+      'vigicrues-floods',
     ],
   },
   {
     label: msg('Utilities'),
     ids: ['directions', 'radio'],
+  },
+  {
+    label: msg('Reference Maps'),
+    ids: ['ign-geoplateforme'],
   },
 ];
 const PANEL_ORDER = PANEL_GROUPS.flatMap(({ label, ids }) =>

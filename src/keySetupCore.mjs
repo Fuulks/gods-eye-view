@@ -126,6 +126,16 @@ export const KEY_SETUP_KEYS = Object.freeze([
     clientExposed: true,
   }),
   Object.freeze({
+    id: 'entsoe',
+    title: 'ENTSO-E', // i18n-ignore: provider product name
+    unlocks: msg(
+      'European electricity load and day-ahead prices (Transparency Platform)',
+    ),
+    getUrl: 'https://transparency.entsoe.eu/profile',
+    envVars: Object.freeze(['ENTSOE_TOKEN']),
+    tier: 'free',
+  }),
+  Object.freeze({
     id: 'launch-library',
     title: 'LAUNCH LIBRARY', // i18n-ignore: provider product name
     unlocks: msg(
