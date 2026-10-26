@@ -202,8 +202,8 @@ function encode(state) {
 
 test('production registry is exact, canonical, and rejects incomplete contracts', async () => {
   assert.equal(validateLayerStateRegistry(), true);
-  assert.equal(REGISTERED_LAYER_IDS.length, 32);
-  assert.equal(new Set(REGISTERED_LAYER_IDS).size, 32);
+  assert.equal(REGISTERED_LAYER_IDS.length, 37);
+  assert.equal(new Set(REGISTERED_LAYER_IDS).size, 37);
   assert.ok(REGISTERED_LAYER_IDS.includes('transit'));
   assert.deepEqual(REGISTERED_LAYER_IDS, [...REGISTERED_LAYER_IDS].sort());
   assert.deepEqual(LEGACY_LAYER_STATE_TOKENS, {
@@ -242,25 +242,25 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
   for (const [id, token] of Object.entries(LEGACY_LAYER_STATE_TOKENS)) {
     assert.equal(LAYER_STATE_TOKEN_RESERVATIONS[id], token);
   }
-  assert.equal(nextLayerStateToken(), '6');
+  // Every single-character token is taken (upstream 0-5, ours 6-9) and the
+  // first two-character one is ours too ('00', ign-geoplateforme), so the next
+  // free token is '01'.
+  assert.equal(nextLayerStateToken(), '01');
   assert.equal(
     nextLayerStateToken({
       ...LAYER_STATE_TOKEN_RESERVATIONS,
-      alpha: '6',
-      bravo: '7',
+      alpha: '01',
+      bravo: '02',
     }),
-    '8',
+    '03',
   );
   const digitsExhausted = {
     ...LAYER_STATE_TOKEN_RESERVATIONS,
-    ...Object.fromEntries(
-      [...'6789'].map((digit) => [`prior-${digit}`, digit]),
-    ),
   };
-  assert.equal(nextLayerStateToken(digitsExhausted), '00');
+  assert.equal(nextLayerStateToken(digitsExhausted), '01');
   assert.equal(
-    nextLayerStateToken({ ...digitsExhausted, retired: '00', used: '01' }),
-    '02',
+    nextLayerStateToken({ ...digitsExhausted, retired: '01', used: '02' }),
+    '03',
   );
   assert.equal(
     nextLayerStateToken({
@@ -299,16 +299,16 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
   );
   assert.equal(
     validateLayerStateRegistry(
-      [{ id: 'future-layer', token: '01', disposition: 'enabled-only' }],
-      { retired: '00', 'future-layer': '01' },
+      [{ id: 'future-layer', token: '02', disposition: 'enabled-only' }],
+      { retired: '01', 'future-layer': '02' },
     ),
     true,
   );
   assert.equal(
     validateLayerStateAllocations(LAYER_STATE_TOKEN_RESERVATIONS, {
       ...LAYER_STATE_TOKEN_RESERVATIONS,
-      future: '6',
-      next: '7',
+      future: '01',
+      next: '02',
     }),
     true,
   );
@@ -316,35 +316,35 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
     () =>
       validateLayerStateAllocations(LAYER_STATE_TOKEN_RESERVATIONS, {
         ...LAYER_STATE_TOKEN_RESERVATIONS,
-        future: '00',
+        future: '02',
       }),
-    /next free token 6/,
+    /next free token 01/,
   );
+  // Freeing sncf-stations' digit makes '6' the next free token again.
   const beforeLastDigit = { ...digitsExhausted };
-  delete beforeLastDigit['prior-9'];
+  delete beforeLastDigit['sncf-stations'];
   assert.equal(
     validateLayerStateAllocations(beforeLastDigit, {
       ...beforeLastDigit,
-      futurePair: '00',
-      futureDigit: '9',
+      futureDigit: '6',
     }),
     true,
   );
   assert.equal(
     validateLayerStateAllocations(digitsExhausted, {
       ...digitsExhausted,
-      pairB: '01',
-      pairA: '00',
+      pairB: '02',
+      pairA: '01',
     }),
     true,
   );
   assert.throws(
     () =>
       validateLayerStateAllocations(
-        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '6' },
-        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '6', competing: '6' },
+        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '01' },
+        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '01', competing: '01' },
       ),
-    /next free token 7/,
+    /next free token 02/,
   );
   assert.throws(
     () => validateLayerStateAllocations({ future: '00' }, { future: '01' }),
@@ -500,7 +500,9 @@ test('unknown enabled-layer tokens reject the payload instead of becoming an emp
 });
 
 test('malformed enabled-layer lists reject the entire payload', () => {
-  for (const value of ['.c', 'c.', 'c..e', 'c.c', '00', 'c.00']) {
+  // '0z' is an unregistered two-character token: '00' is ours
+  // (ign-geoplateforme), so the probe moved to the next free pair.
+  for (const value of ['.c', 'c.', 'c..e', 'c.c', '0z', 'c.0z']) {
     assert.equal(
       decodeLayerStateParams(new URLSearchParams(`v=2&l=${value}`)),
       null,
