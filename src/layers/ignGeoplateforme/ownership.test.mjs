@@ -44,8 +44,9 @@ test('enabling adds the imagery layer through the local proxy template', () => {
   const { layer, viewer, added } = harness(descriptor());
   layer.enable(viewer);
   assert.equal(added.length, 1);
+  // The provider exposes the template through its public `url` accessor.
   assert.ok(
-    added[0]._url.startsWith('/api/ign-geoplateforme/tiles/'),
+    added[0].url.startsWith('/api/ign-geoplateforme/tiles/'),
     'the browser must not name an upstream URL',
   );
   assert.equal(layer.getStats().count, 1);

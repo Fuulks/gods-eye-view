@@ -48,6 +48,9 @@ test('the complete Realtime tool payload pins the manifest-generated layer relea
     // Snow leaves the set_visual_style enum.
     // The Operator HUD layout leaves set_hud's layout enum.
     'f47a7f78f13b1f79978fa524fad2618e32bd813e1a5dfd746bf35d29909fc91b',
+    // The five C3 data-source layers extend the voice layer manifest as well,
+    // so the generated layer enums and aliases change; the pin moves with them.
+    '0d4df8d637e226f77b8286356967e85422f3a881a218ff1dc057f40d24e1f803',
   );
 });
 
