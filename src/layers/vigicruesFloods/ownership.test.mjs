@@ -84,8 +84,22 @@ test('a late refresh cannot publish after disable or destroy', async () => {
 });
 
 test('two displays own separate data sources and destruction', async () => {
-  const a = harness({ getSnapshot: async () => { stations: [], zones: [], total: 0, observedAt: null } });
-  const b = harness({ getSnapshot: async () => { stations: [], zones: [], total: 0, observedAt: null } });
+  const a = harness({
+    getSnapshot: async () => ({
+      stations: [],
+      zones: [],
+      total: 0,
+      observedAt: null,
+    }),
+  });
+  const b = harness({
+    getSnapshot: async () => ({
+      stations: [],
+      zones: [],
+      total: 0,
+      observedAt: null,
+    }),
+  });
   await a.layer.update(a.viewer);
   await b.layer.update(b.viewer);
   a.layer.destroy();

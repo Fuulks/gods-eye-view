@@ -28,9 +28,14 @@ test('panel presentation places Transit between Street Traffic and Bike Share in
       'traffic',
       'transit',
       'bikeshare',
+      'sncf-stations',
     ],
   );
   assert.equal(order.filter(({ id }) => id === 'transit').length, 1);
+  // Transit still sits between Street Traffic and Bike Share.
+  const movement = order.filter(({ label }) => label === 'Movement').map(({ id }) => id);
+  assert.ok(movement.indexOf('transit') > movement.indexOf('traffic'));
+  assert.ok(movement.indexOf('transit') < movement.indexOf('bikeshare'));
 });
 
 test('partial feed controls distinguish incomplete records from stale data and outages', async () => {

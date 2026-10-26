@@ -38,7 +38,11 @@ test('a payload is normalized into a banded series', () => {
   assert.equal(result.unit, 'MW');
   assert.equal(result.day, '2026-10-25');
   assert.equal(result.series[0].band, 'peak');
-  assert.equal(result.series[1].band, 'low');
+  // 25 of 100 is a quarter of the snapshot max: the bottom edge of the
+  // moderate band. The bands are a partition of [0,1] into quarter bins,
+  // half-open on the left: [0,0.25) low, [0.25,0.5) moderate,
+  // [0.5,0.75) high, [0.75,1] peak.
+  assert.equal(result.series[1].band, 'moderate');
 });
 
 test('a structurally broken payload is refused so the last good one is kept', () => {

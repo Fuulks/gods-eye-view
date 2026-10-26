@@ -84,8 +84,8 @@ test('a late refresh cannot publish after disable or destroy', async () => {
 });
 
 test('two displays own separate data sources and destruction', async () => {
-  const a = harness({ getSnapshot: async () => { stations: [], total: 0 } });
-  const b = harness({ getSnapshot: async () => { stations: [], total: 0 } });
+  const a = harness({ getSnapshot: async () => ({ stations: [], total: 0 }) });
+  const b = harness({ getSnapshot: async () => ({ stations: [], total: 0 }) });
   await a.layer.update(a.viewer);
   await b.layer.update(b.viewer);
   a.layer.destroy();
@@ -97,7 +97,9 @@ test('the layer is the station network, not live train telemetry', () => {
   const h = harness({ getSnapshot: async () => ({ stations: [], total: 0 }) });
   const { summary } = h.layer.getRowControls();
   assert.match(summary.coverage, /station network/i);
-  assert.doesNotMatch(summary.coverage, /live train/i);
+  // The row states what the data is NOT: the phrase appears only inside the
+  // disclaimer, so match the disclaimer rather than banning the words.
+  assert.match(summary.coverage, /not live train/i);
   assert.doesNotMatch(summary.coverage, /GPS/i);
   h.layer.destroy();
 });

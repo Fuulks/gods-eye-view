@@ -1066,10 +1066,14 @@ test('the voice TOOL SCHEMA matches the pinned contract — the mission mapping 
   // Panel adds timeout and named voice/provider targets; consolidated guidance
   // preserves the mission mapping and globe-rotation arguments.
   // S2 GhostMaps extends the generated layer enums; both feature contracts remain.
-  assert.equal(block.length, 31206, 'serialized tool schema length drifted');
+  // The five C3 data-source layers (SNCF Stations, Vigicrues floods, ENTSO-E
+  // grid, Copernicus EMS, IGN Geoplateforme) extend the voice layer manifest
+  // too, so the schema grew again: the pin moves with the manifest, it is not
+  // weakened.
+  assert.equal(block.length, 31812, 'serialized tool schema length drifted');
   assert.equal(
     crypto.createHash('sha256').update(block).digest('hex'),
-    'f772df95404494bf492e02fde1beabffdfe61986940bffd0cf9ad5a38d768746',
+    '3b85293f9df4f06d8094810b75a9ad3325d40f00ca53f6724fed54942d848f55',
     'the first-run missions must ride EXISTING tools: no schema edit, no cache bust',
   );
   const instructions = fs.readFileSync(
