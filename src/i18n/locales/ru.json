@@ -3170,5 +3170,7 @@
   "Vigilance unknown": "Уровень неизвестен",
   "Malformed warning-zone response": "Некорректный ответ со списком зон предупреждения",
   "Reference Maps": "Референсные карты",
-  "European electricity load and day-ahead prices (Transparency Platform)": "Европейская электрическая нагрузка и цены на сутки вперёд (Платформа прозрачности)"
+  "European electricity load and day-ahead prices (Transparency Platform)": "Европейская электрическая нагрузка и цены на сутки вперёд (Платформа прозрачности)",
+  "Scheduled timetables and live vehicle positions from the global GTFS catalog. The key is required.": "Расписания и позиции транспорта в реальном времени из глобального каталога GTFS. Ключ обязателен.",
+  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "Ближайшие отправления, сообщения о ситуации на дорогах и данные маршрутизации Парижского региона из каталога API PRIM. Ключ обязателен."
 }

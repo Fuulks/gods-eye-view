@@ -2954,5 +2954,7 @@
   "Vigilance unknown": "警戒级别未知",
   "Malformed warning-zone response": "预警区响应格式错误",
   "Reference Maps": "参考地图",
-  "European electricity load and day-ahead prices (Transparency Platform)": "欧洲电力负荷与日前电价（透明度平台）"
+  "European electricity load and day-ahead prices (Transparency Platform)": "欧洲电力负荷与日前电价（透明度平台）",
+  "Scheduled timetables and live vehicle positions from the global GTFS catalog. The key is required.": "来自全球 GTFS 目录的时刻表与车辆实时位置。该密钥为必需项。",
+  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "来自 PRIM API 目录的巴黎地区即将到站、交通状况与行程规划数据。该密钥为必需项。"
 }
