@@ -101,28 +101,23 @@ export const NYC_DOT_DISCLAIMER =
 export const DATA_CREDITS = [
   {
     key: 'sncf',
-    html:
-      'SNCF station network: <a href="https://ressources.data.sncf.com" target="_blank" rel="noopener">ressources.data.sncf.com</a> (Open Data, SNCF)',
+    html: 'SNCF station network: <a href="https://ressources.data.sncf.com" target="_blank" rel="noopener">ressources.data.sncf.com</a> (Open Data, SNCF)',
   },
   {
     key: 'vigicrues',
-    html:
-      'Flood warnings and river levels: <a href="https://www.vigicrues.gouv.fr" target="_blank" rel="noopener">vigicrues.gouv.fr</a> (VIGIECRUES, Ministere de l Ecology)',
+    html: 'Flood warnings and river levels: <a href="https://www.vigicrues.gouv.fr" target="_blank" rel="noopener">vigicrues.gouv.fr</a> (VIGIECRUES, Ministere de l Ecology)',
   },
   {
     key: 'ign',
-    html:
-      'French topographic base map: <a href="https://data.geopf.fr" target="_blank" rel="noopener">data.geopf.fr</a> (IGN Geoplateforme, Plan IGN)',
+    html: 'French topographic base map: <a href="https://data.geopf.fr" target="_blank" rel="noopener">data.geopf.fr</a> (IGN Geoplateforme, Plan IGN)',
   },
   {
     key: 'entsoe',
-    html:
-      'European grid load: <a href="https://transparency.entsoe.eu" target="_blank" rel="noopener">transparency.entsoe.eu</a> (ENTSO-E Transparency Platform)',
+    html: 'European grid load: <a href="https://transparency.entsoe.eu" target="_blank" rel="noopener">transparency.entsoe.eu</a> (ENTSO-E Transparency Platform)',
   },
   {
     key: 'copernicus-ems',
-    html:
-      'Active European hazards: <a href="https://emergency.copernicus.eu" target="_blank" rel="noopener">emergency.copernicus.eu</a> (Copernicus Emergency Management Service)',
+    html: 'Active European hazards: <a href="https://emergency.copernicus.eu" target="_blank" rel="noopener">emergency.copernicus.eu</a> (Copernicus Emergency Management Service)',
   },
   // ── Live sources ────────────────────────────────────────────────
   {

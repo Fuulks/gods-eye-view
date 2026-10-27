@@ -28,7 +28,8 @@ const MAX_DRAWN_POINTS = 96;
 export function createEntsoeGridLayer({ source, overlayHost } = {}) {
   if (typeof source?.getSnapshot !== 'function')
     throw new TypeError('ENTSO-E grid requires a snapshot source');
-  if (!overlayHost) throw new TypeError('ENTSO-E grid requires an overlay host');
+  if (!overlayHost)
+    throw new TypeError('ENTSO-E grid requires an overlay host');
   let _viewer = null;
   let _request = null;
   let _dataSource = null;

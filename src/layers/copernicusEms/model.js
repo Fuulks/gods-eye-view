@@ -42,13 +42,25 @@ export const COPERNICUS_PHASES = Object.freeze([
 export const COPERNICUS_CATEGORIES = Object.freeze([
   Object.freeze({ id: 'flood', label: msg('Flood'), color: '#4cc9f0' }),
   Object.freeze({ id: 'fire', label: msg('Fire'), color: '#ff6b35' }),
-  Object.freeze({ id: 'earthquake', label: msg('Earthquake'), color: '#ffd43b' }),
+  Object.freeze({
+    id: 'earthquake',
+    label: msg('Earthquake'),
+    color: '#ffd43b',
+  }),
   Object.freeze({ id: 'storm', label: msg('Storm'), color: '#a78bfa' }),
   Object.freeze({ id: 'landslide', label: msg('Landslide'), color: '#c9a227' }),
   Object.freeze({ id: 'drought', label: msg('Drought'), color: '#e9c46a' }),
-  Object.freeze({ id: 'volcanic', label: msg('Volcanic activity'), color: '#f77f00' }),
+  Object.freeze({
+    id: 'volcanic',
+    label: msg('Volcanic activity'),
+    color: '#f77f00',
+  }),
   Object.freeze({ id: 'chemical', label: msg('Chemical'), color: '#48cae4' }),
-  Object.freeze({ id: 'biological', label: msg('Biological'), color: '#80ed99' }),
+  Object.freeze({
+    id: 'biological',
+    label: msg('Biological'),
+    color: '#80ed99',
+  }),
   Object.freeze({ id: 'other', label: msg('Other'), color: '#adb5bd' }),
 ]);
 
@@ -57,14 +69,18 @@ export const COPERNICUS_UNKNOWN_COLOR = '#adb5bd';
 
 /** Accent colour for a hazard category slug. */
 export function copernicusCategoryColor(slug) {
-  const key = String(slug ?? '').trim().toLowerCase();
+  const key = String(slug ?? '')
+    .trim()
+    .toLowerCase();
   const found = COPERNICUS_CATEGORIES.find((entry) => entry.id === key);
   return found ? found.color : COPERNICUS_UNKNOWN_COLOR;
 }
 
 /** The label for a hazard category slug. */
 export function copernicusCategoryLabel(slug) {
-  const key = String(slug ?? '').trim().toLowerCase();
+  const key = String(slug ?? '')
+    .trim()
+    .toLowerCase();
   const found = COPERNICUS_CATEGORIES.find((entry) => entry.id === key);
   if (found) return found.label;
   return key ? key.charAt(0).toUpperCase() + key.slice(1) : msg('Other');
@@ -72,7 +88,9 @@ export function copernicusCategoryLabel(slug) {
 
 /** The label for a disaster-risk-management phase id. */
 export function copernicusPhaseLabel(phase) {
-  const key = String(phase ?? '').trim().toLowerCase();
+  const key = String(phase ?? '')
+    .trim()
+    .toLowerCase();
   const found = COPERNICUS_PHASES.find((entry) => entry.id === key);
   if (found) return found.label;
   return key ? key.charAt(0).toUpperCase() + key.slice(1) : msg('Unknown');
@@ -125,8 +143,14 @@ export function normalizeCopernicusActivations(payload) {
     if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
     if (Math.abs(lon) > 180 || Math.abs(lat) > 90) continue;
     seen.add(id);
-    const category = String(raw?.category ?? '').trim().toLowerCase() || 'other';
-    const phase = String(raw?.phase ?? '').trim().toLowerCase() || null;
+    const category =
+      String(raw?.category ?? '')
+        .trim()
+        .toLowerCase() || 'other';
+    const phase =
+      String(raw?.phase ?? '')
+        .trim()
+        .toLowerCase() || null;
     activations.push({
       id,
       code: String(raw?.code ?? '').trim() || null,
@@ -139,7 +163,9 @@ export function normalizeCopernicusActivations(payload) {
       closed: raw?.closed === true,
       country: String(raw?.country ?? '').trim() || null,
       countries: Array.isArray(raw?.countries)
-        ? raw.countries.map((entry) => String(entry ?? '').trim()).filter(Boolean)
+        ? raw.countries
+            .map((entry) => String(entry ?? '').trim())
+            .filter(Boolean)
         : [],
       lon,
       lat,

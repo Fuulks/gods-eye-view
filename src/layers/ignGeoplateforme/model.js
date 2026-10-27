@@ -29,7 +29,10 @@ export const IGN_MAX_ZOOM = 19;
  */
 export const IGN_RASTER_LAYERS = Object.freeze([
   Object.freeze({ id: 'PLANIGNV2', label: msg('Plan IGN v2') }),
-  Object.freeze({ id: 'PLANIGNV2.L93', label: msg('Plan IGN v2 (Lambert 93)') }),
+  Object.freeze({
+    id: 'PLANIGNV2.L93',
+    label: msg('Plan IGN v2 (Lambert 93)'),
+  }),
   Object.freeze({ id: 'ORTHOPHOTOS', label: msg('IGN Orthophotos') }),
 ]);
 

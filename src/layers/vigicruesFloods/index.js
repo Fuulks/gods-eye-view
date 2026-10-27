@@ -124,7 +124,10 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
       _dataSource.entities.removeAll();
       const overlayEntries = [];
       for (const station of _stations) {
-        const position = Cesium.Cartesian3.fromDegrees(station.lon, station.lat);
+        const position = Cesium.Cartesian3.fromDegrees(
+          station.lon,
+          station.lat,
+        );
         const color = Cesium.Color.fromCssColorString(station.color);
         _dataSource.entities.add(
           new Cesium.Entity({
@@ -178,7 +181,9 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
     _renderZones() {
       if (!_dataSource) return;
       for (const zone of _zones) {
-        const color = Cesium.Color.fromCssColorString(zone.color).withAlpha(0.85);
+        const color = Cesium.Color.fromCssColorString(zone.color).withAlpha(
+          0.85,
+        );
         let index = 0;
         for (const line of zoneLines(zone.geometry)) {
           if (line.length < 2) continue;
