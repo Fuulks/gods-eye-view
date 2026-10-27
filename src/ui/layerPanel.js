@@ -50,6 +50,7 @@ const PANEL_GROUPS = [
       'transit',
       'bikeshare',
       'sncf-stations',
+      'velib-stations',
     ],
   },
   {

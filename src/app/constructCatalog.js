@@ -29,6 +29,7 @@ import { createApplicationVigicruesFloods } from './layers/vigicruesFloods.js';
 import { createApplicationIgnGeoplateforme } from './layers/ignGeoplateforme.js';
 import { createApplicationEntsoeGrid } from './layers/entsoeGrid.js';
 import { createApplicationCopernicusEms } from './layers/copernicusEms.js';
+import { createApplicationVelibStations } from './layers/velibStations.js';
 import { createApplicationAirQuality } from './layers/airQuality.js';
 import { createApplicationFirePerimeters } from './layers/perimeters.js';
 import { createApplicationGnssIntegrity } from './layers/gnss.js';
@@ -134,6 +135,7 @@ export function createApplicationCatalog({
         }),
         createApplicationEntsoeGrid({ source: sources['entsoe-grid'] }),
         createApplicationCopernicusEms({ source: sources['copernicus-ems'] }),
+        createApplicationVelibStations({ source: sources['velib-stations'] }),
         createApplicationAirQuality({ source: sources['air-quality'] }),
         createApplicationFirePerimeters({
           source: sources['fire-perimeters'],

@@ -20,6 +20,7 @@ import { vigicruesProxy } from './vigicrues.js';
 import { ignGeoplateformeProxy } from './ignGeoplateforme.js';
 import { entsoeProxy } from './entsoe.js';
 import { copernicusEmsProxy } from './copernicusEms.js';
+import { velibProxy } from './velib.js';
 import { adsbLolProxy } from './aircraft/adsb-lol.js';
 import { aisLiveProxy } from './vessels/ais-live.js';
 import { trackBackfillProxies } from './aircraft/tracks.js';
@@ -63,6 +64,7 @@ function localProviderPlugins({ realtime, gemini } = {}) {
     ignGeoplateformeProxy(),
     entsoeProxy(),
     copernicusEmsProxy(),
+    velibProxy(),
     adsbLolProxy(),
     aisLiveProxy(),
     trackBackfillProxies(),

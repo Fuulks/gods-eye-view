@@ -23,6 +23,7 @@ test('reference factories retain compatibility without starting acquisition or s
     'ign-geoplateforme',
     'entsoe-grid',
     'copernicus-ems',
+    'velib-stations',
   ]);
   assert.notEqual(first.earthquakes, second.earthquakes);
   assert.notEqual(first['air-quality'], second['air-quality']);
@@ -34,6 +35,7 @@ test('reference factories retain compatibility without starting acquisition or s
   assert.notEqual(first['ign-geoplateforme'], second['ign-geoplateforme']);
   assert.notEqual(first['entsoe-grid'], second['entsoe-grid']);
   assert.notEqual(first['copernicus-ems'], second['copernicus-ems']);
+  assert.notEqual(first['velib-stations'], second['velib-stations']);
   assert.equal(typeof first.earthquakes.getSnapshot, 'function');
   assert.equal(typeof first['air-quality'].getSnapshot, 'function');
   assert.equal(typeof first['fire-perimeters'].getSnapshot, 'function');
@@ -44,5 +46,6 @@ test('reference factories retain compatibility without starting acquisition or s
   assert.equal(typeof first['ign-geoplateforme'].getDescriptor, 'function');
   assert.equal(typeof first['entsoe-grid'].getSnapshot, 'function');
   assert.equal(typeof first['copernicus-ems'].getSnapshot, 'function');
+  assert.equal(typeof first['velib-stations'].getSnapshot, 'function');
   assert.equal(requests, 0);
 });

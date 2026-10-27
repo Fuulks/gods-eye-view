@@ -35,5 +35,6 @@
   ["vigicrues-floods", "7"],
   ["entsoe-grid", "8"],
   ["copernicus-ems", "9"],
-  ["ign-geoplateforme", "00"]
+  ["ign-geoplateforme", "00"],
+  ["velib-stations", "01"]
 ]

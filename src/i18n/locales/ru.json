@@ -3172,5 +3172,15 @@
   "Reference Maps": "Референсные карты",
   "European electricity load and day-ahead prices (Transparency Platform)": "Европейская электрическая нагрузка и цены на сутки вперёд (Платформа прозрачности)",
   "Scheduled timetables and live vehicle positions from the global GTFS catalog. The key is required.": "Расписания и позиции транспорта в реальном времени из глобального каталога GTFS. Ключ обязателен.",
-  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "Ближайшие отправления, сообщения о ситуации на дорогах и данные маршрутизации Парижского региона из каталога API PRIM. Ключ обязателен."
+  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "Ближайшие отправления, сообщения о ситуации на дорогах и данные маршрутизации Парижского региона из каталога API PRIM. Ключ обязателен.",  "Vélib' Stations": "Станции Vélib'",
+  "{count} bikes on the ground": {
+    "one": "{count} велосипед на станции",
+    "few": "{count} велосипеда на станциях",
+    "many": "{count} велосипедов на станциях",
+    "other": "{count} велосипеда на станциях"
+  },
+  "Paris docked bike share (1 519 Vélib' stations) — live availability per station, not per bike": "Парижский велопрокат со станциями (1 519 станций Vélib') — наличие в реальном времени по станциям, а не по велосипедам",
+  "Empty": "Пусто",
+  "Good": "Много",
+  "Plenty": "Очень много"
 }

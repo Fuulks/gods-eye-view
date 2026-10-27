@@ -50,7 +50,9 @@ test('the complete Realtime tool payload pins the manifest-generated layer relea
     'f47a7f78f13b1f79978fa524fad2618e32bd813e1a5dfd746bf35d29909fc91b',
     // The five C3 data-source layers extend the voice layer manifest too, so the
     // generated layer enums and aliases change; the pin moves with them.
-    'e3283e0e8ead35103b1a72792ce0541a623970962d852567d8520430c89c2efe',
+    // The Velib' stations layer extends the manifest once more; the pin moves
+    // with it, and the guardrail stays.
+    '2dc8ece4def7b71f2a61288e6cce192c5d9a5dd4667e35d2b96ed060d2d476fa',
   );
 });
 
