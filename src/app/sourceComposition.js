@@ -55,6 +55,7 @@ export const CATALOG_SOURCE_CONTRACTS = Object.freeze({
   'ign-geoplateforme': contract(['ign-geoplateforme'], ['getDescriptor']),
   'entsoe-grid': contract(['entsoe-grid'], ['getSnapshot']),
   'copernicus-ems': contract(['copernicus-ems'], ['getSnapshot']),
+  'velib-stations': contract(['velib-stations'], ['getSnapshot']),
   transit: contract(['transit'], ['requestSnapshot', 'getHistory']),
 });
 

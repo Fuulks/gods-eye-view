@@ -3078,5 +3078,14 @@
   "Reference Maps": "Mapas de referencia",
   "European electricity load and day-ahead prices (Transparency Platform)": "Carga eléctrica europea y precios day-ahead (Plataforma de Transparencia)",
   "Scheduled timetables and live vehicle positions from the global GTFS catalog. The key is required.": "Horarios programados y posiciones de vehículos en directo del catálogo GTFS mundial. La clave es obligatoria.",
-  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "Próximas salidas, mensajes de tráfico y datos de itinerarios de la región de París desde el catálogo de APIs de PRIM. La clave es obligatoria."
+  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "Próximas salidas, mensajes de tráfico y datos de itinerarios de la región de París desde el catálogo de APIs de PRIM. La clave es obligatoria.",  "Vélib' Stations": "Estaciones Vélib'",
+  "{count} bikes on the ground": {
+    "one": "{count} bicicleta disponible",
+    "many": "{count} bicicletas disponibles",
+    "other": "{count} bicicletas disponibles"
+  },
+  "Paris docked bike share (1 519 Vélib' stations) — live availability per station, not per bike": "Bicis públicas de anclaje en París (1 519 estaciones Vélib') — disponibilidad en vivo por estación, no por bicicleta",
+  "Empty": "Vacía",
+  "Good": "Buena",
+  "Plenty": "Abundante"
 }

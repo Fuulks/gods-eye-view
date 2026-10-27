@@ -351,8 +351,10 @@ test('deixis prompt lint: one short rule, and every sentinel it names exists in 
   // grid, Copernicus EMS, IGN Geoplateforme) extend the voice layer manifest,
   // which grows the tool schemas. The ceiling moves with them; the guardrail
   // stays.
+  // The Velib' stations layer (Paris docked bike share, GBFS) extends the
+  // manifest once more, so the ceiling moves again. The guardrail stays.
   const size = instructions.length + JSON.stringify(GEV_REALTIME_TOOLS).length;
-  assert.ok(size <= 52700, `prompt size ${size}`);
+  assert.ok(size <= 52800, `prompt size ${size}`);
 });
 
 

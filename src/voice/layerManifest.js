@@ -325,6 +325,24 @@ const layers = [
     },
   },
   {
+    id: 'velib-stations',
+    aliases: ['velib', 'velib metropole', 'bike share paris', 'paris bikes'],
+    context: false,
+    query: {
+      fields: {
+        name: ['t'],
+        code: ['t'],
+        bikes: ['n'],
+        eBikes: ['n'],
+        mechanical: ['n'],
+        docks: ['n'],
+        band: ['t'],
+        lat: ['n'],
+        lon: ['n'],
+      },
+    },
+  },
+  {
     id: 'ign-geoplateforme',
     aliases: ['ign', 'ign map', 'plan ign', 'french basemap', 'geoplateforme'],
     context: false,

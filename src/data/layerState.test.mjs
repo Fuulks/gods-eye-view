@@ -202,8 +202,8 @@ function encode(state) {
 
 test('production registry is exact, canonical, and rejects incomplete contracts', async () => {
   assert.equal(validateLayerStateRegistry(), true);
-  assert.equal(REGISTERED_LAYER_IDS.length, 37);
-  assert.equal(new Set(REGISTERED_LAYER_IDS).size, 37);
+  assert.equal(REGISTERED_LAYER_IDS.length, 38);
+  assert.equal(new Set(REGISTERED_LAYER_IDS).size, 38);
   assert.ok(REGISTERED_LAYER_IDS.includes('transit'));
   assert.deepEqual(REGISTERED_LAYER_IDS, [...REGISTERED_LAYER_IDS].sort());
   assert.deepEqual(LEGACY_LAYER_STATE_TOKENS, {
@@ -243,24 +243,24 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
     assert.equal(LAYER_STATE_TOKEN_RESERVATIONS[id], token);
   }
   // Every single-character token is taken (upstream 0-5, ours 6-9) and the
-  // first two-character one is ours too ('00', ign-geoplateforme), so the next
-  // free token is '01'.
-  assert.equal(nextLayerStateToken(), '01');
+  // first two-character ones are ours too ('00' ign-geoplateforme, '01'
+  // velib-stations), so the next free token is '02'.
+  assert.equal(nextLayerStateToken(), '02');
   assert.equal(
     nextLayerStateToken({
       ...LAYER_STATE_TOKEN_RESERVATIONS,
-      alpha: '01',
-      bravo: '02',
+      alpha: '02',
+      bravo: '03',
     }),
-    '03',
+    '04',
   );
   const digitsExhausted = {
     ...LAYER_STATE_TOKEN_RESERVATIONS,
   };
-  assert.equal(nextLayerStateToken(digitsExhausted), '01');
+  assert.equal(nextLayerStateToken(digitsExhausted), '02');
   assert.equal(
-    nextLayerStateToken({ ...digitsExhausted, retired: '01', used: '02' }),
-    '03',
+    nextLayerStateToken({ ...digitsExhausted, retired: '02', used: '03' }),
+    '04',
   );
   assert.equal(
     nextLayerStateToken({
@@ -299,16 +299,16 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
   );
   assert.equal(
     validateLayerStateRegistry(
-      [{ id: 'future-layer', token: '02', disposition: 'enabled-only' }],
-      { retired: '01', 'future-layer': '02' },
+      [{ id: 'future-layer', token: '03', disposition: 'enabled-only' }],
+      { retired: '02', 'future-layer': '03' },
     ),
     true,
   );
   assert.equal(
     validateLayerStateAllocations(LAYER_STATE_TOKEN_RESERVATIONS, {
       ...LAYER_STATE_TOKEN_RESERVATIONS,
-      future: '01',
-      next: '02',
+      future: '02',
+      next: '03',
     }),
     true,
   );
@@ -316,9 +316,9 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
     () =>
       validateLayerStateAllocations(LAYER_STATE_TOKEN_RESERVATIONS, {
         ...LAYER_STATE_TOKEN_RESERVATIONS,
-        future: '02',
+        future: '03',
       }),
-    /next free token 01/,
+    /next free token 02/,
   );
   // Freeing sncf-stations' digit makes '6' the next free token again.
   const beforeLastDigit = { ...digitsExhausted };
@@ -333,18 +333,18 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
   assert.equal(
     validateLayerStateAllocations(digitsExhausted, {
       ...digitsExhausted,
-      pairB: '02',
-      pairA: '01',
+      pairB: '03',
+      pairA: '02',
     }),
     true,
   );
   assert.throws(
     () =>
       validateLayerStateAllocations(
-        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '01' },
-        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '01', competing: '01' },
+        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '02' },
+        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '02', competing: '02' },
       ),
-    /next free token 02/,
+    /next free token 03/,
   );
   assert.throws(
     () => validateLayerStateAllocations({ future: '00' }, { future: '01' }),

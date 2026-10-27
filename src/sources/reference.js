@@ -8,6 +8,7 @@ import { createVigicruesSource } from '../layers/vigicruesFloods/source.js';
 import { createIgnGeoplateformeSource } from '../layers/ignGeoplateforme/source.js';
 import { createEntsoeSource } from '../layers/entsoeGrid/source.js';
 import { createCopernicusEmsSource } from '../layers/copernicusEms/source.js';
+import { createVelibStationsSource } from '../layers/velibStations/source.js';
 
 /** Construct the existing reference feeds independently of application setup. */
 export function createReferenceSources() {
@@ -22,5 +23,6 @@ export function createReferenceSources() {
     'ign-geoplateforme': createIgnGeoplateformeSource(),
     'entsoe-grid': createEntsoeSource(),
     'copernicus-ems': createCopernicusEmsSource(),
+    'velib-stations': createVelibStationsSource(),
   };
 }

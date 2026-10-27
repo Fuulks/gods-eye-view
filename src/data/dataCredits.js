@@ -100,6 +100,10 @@ export const NYC_DOT_DISCLAIMER =
 
 export const DATA_CREDITS = [
   {
+    key: 'velib',
+    html: 'Paris bike share: <a href="https://velib-metropole.fr" target="_blank" rel="noopener">velib-metropole.fr</a> (Velib Metropole, GBFS open data)',
+  },
+  {
     key: 'sncf',
     html: 'SNCF station network: <a href="https://ressources.data.sncf.com" target="_blank" rel="noopener">ressources.data.sncf.com</a> (Open Data, SNCF)',
   },
