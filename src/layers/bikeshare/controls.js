@@ -1,4 +1,5 @@
-import { msg, t } from '../../i18n/index.js';
+import { msg, t, tn } from '../../i18n/index.js';
+import { BIKESHARE_DESCRIPTION } from './policy.js';
 import { STATUS_POLL_MS } from './policy.js';
 
 export function createControls({ state: layerState, services, parts, source }) {
@@ -53,6 +54,40 @@ export function createControls({ state: layerState, services, parts, source }) {
         });
       }
       return result;
+    },
+
+    /**
+     * The Bike Share row's own readout. It states the merged coverage: the
+     * city GBFS networks, Paris and Velib among them, with live
+     * availability per station rather than per bike.
+     */
+    getRowControls() {
+      let bikes = 0;
+      for (const record of layerState._stationRenderMap.values()) {
+        bikes += Number(record.bikesAvailable) || 0;
+      }
+      return {
+        readout: true,
+        summary: {
+          label: t('Bike Share'),
+          coverage: t(BIKESHARE_DESCRIPTION),
+          validTime: layerState._lastUpdate
+            ? new Date(layerState._lastUpdate).toISOString()
+            : undefined,
+          status:
+            layerState._failedCityIds.size > 0
+              ? t('GBFS fetch error')
+              : layerState._count === 0
+                ? layerState._lastUpdate === null
+                  ? t('No stations available')
+                  : t('No current stations')
+                : tn(
+                    bikes,
+                    '{count} bike on the ground',
+                    '{count} bikes on the ground',
+                  ),
+        },
+      };
     },
 
     /**

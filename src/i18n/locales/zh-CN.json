@@ -2914,13 +2914,11 @@
   "French topographic base map · IGN Géoplateforme (Plan IGN v2)": "法国地形底图 · IGN Géoplateforme（Plan IGN v2）",
   "IGN Géoplateforme · Plan IGN v2": "IGN Géoplateforme · Plan IGN v2",
   "Station network unavailable": "车站网络不可用",
-  "SNCF Stations": "SNCF 车站",
   "No stations available": "没有可用的车站",
   "No current stations": "没有当前车站",
   "{count} stations mapped": {
     "other": "已映射 {count} 座车站"
   },
-  "French passenger stations (2 792 SNCF network) — station network, not live train positions": "法国客运车站（SNCF 网络共 2 792 座）— 车站网络，而非列车实时位置",
   "Malformed station response": "车站响应格式错误",
   "Flood feed unavailable": "洪水信息源不可用",
   "Flood Warnings": "洪水预警",
@@ -2936,12 +2934,10 @@
   "Reference Maps": "参考地图",
   "European electricity load and day-ahead prices (Transparency Platform)": "欧洲电力负荷与日前电价（透明度平台）",
   "Scheduled timetables and live vehicle positions from the global GTFS catalog. The key is required.": "来自全球 GTFS 目录的时刻表与车辆实时位置。该密钥为必需项。",
-  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "来自 PRIM API 目录的巴黎地区即将到站、交通状况与行程规划数据。该密钥为必需项。",  "Vélib' Stations": "Vélib' 站点",
+  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "来自 PRIM API 目录的巴黎地区即将到站、交通状况与行程规划数据。该密钥为必需项。",
   "{count} bikes on the ground": {
     "other": "站内 {count} 辆自行车"
   },
-  "Paris docked bike share (1 519 Vélib' stations) — live availability per station, not per bike": "巴黎桩式共享单车（1 519 个 Vélib' 站点）——按站点显示实时可用量，而非按单车",
-  "Empty": "空",
-  "Good": "充足",
-  "Plenty": "非常充足"
+  "Live transit vehicles and the French passenger-station network (2 792 SNCF stations) — the stations are a network, not live train positions": "实时交通车辆与法国客运站网络（SNCF 2 792 座站）——站点是网络，而非列车实时位置",
+  "City docked bike share, Paris and 62 other cities — live availability per station, not per bike": "城市桩式共享单车：巴黎及其他 62 座城市——按站点显示实时可用量，而非按单车"
 }

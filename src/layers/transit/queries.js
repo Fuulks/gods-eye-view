@@ -11,6 +11,8 @@ import {
   getRegisteredTransitFeed,
 } from '../../data/transitFeeds.js';
 import { transitModeTier } from '../../data/transitPresetStyle.js';
+import { t, tn } from '../../i18n/index.js';
+import { TRANSIT_STATION_DESCRIPTION } from './stationModel.js';
 
 /**
  * The registry entry behind a vehicle. Live feeds answer first so a feed the
@@ -226,9 +228,69 @@ export function createQueries({ state, parts }) {
           courseDeg: num(entry.courseDeg ?? record.bearing),
           status: record.status || null,
           occupancy: record.occupancy || null,
+          // The station fields belong to the STATION network this same row
+          // draws. A vehicle record carries them empty, so one declared
+          // shape covers both halves of the merged layer.
+          name: null,
+          shortCode: null,
+          uic: null,
+          segment: null,
+        });
+      }
+      // The French passenger-station network the same row draws. Its rows are
+      // station records, not vehicle records, so they carry the station's own
+      // fields rather than a vehicle's.
+      for (const station of state._stations || []) {
+        if (result.length >= maxCount) break;
+        result.push({
+          id: station.id,
+          label: station.name,
+          routeId: null,
+          mode: 'station',
+          lat: station.lat,
+          lon: station.lon,
+          speedMps: null,
+          courseDeg: null,
+          status: station.shortCode || null,
+          occupancy: null,
+          name: station.name,
+          shortCode: station.shortCode,
+          uic: station.uic,
+          segment: station.segment,
         });
       }
       return result;
+    },
+
+    /**
+     * The Transit row's own readout. It states BOTH halves of the merged
+     * layer: the live GTFS-RT fleet and the French passenger-station
+     * network, and it keeps the station network's own disclaimer so the row
+     * is not mistaken for live train telemetry.
+     */
+    getRowControls() {
+      const stationCount = (state._stations || []).length;
+      return {
+        readout: true,
+        summary: {
+          label: t('Transit'),
+          coverage: t(TRANSIT_STATION_DESCRIPTION),
+          validTime: state._lastUpdate
+            ? new Date(state._lastUpdate).toISOString()
+            : undefined,
+          status: state._stationError
+            ? t('Station network unavailable')
+            : stationCount === 0
+              ? state._vehicles.size === 0
+                ? t('No stations available')
+                : t('No current stations')
+              : tn(
+                  stationCount,
+                  '{count} station mapped',
+                  '{count} stations mapped',
+                ),
+        },
+      };
     },
 
     getStats() {
@@ -239,18 +301,27 @@ export function createQueries({ state, parts }) {
       const now = Date.now();
       const health = aggregateTransitFeedHealth(statuses, now);
       const count = state._vehicles.size;
+      // The row counts what it DRAWS: the live fleet plus the French
+      // passenger stations. The stations are static, so they are counted from
+      // the catalogue rather than from a poll.
+      const stationCount = (state._stations || []).length;
+      const stationNote = stationCount ? ` · ${stationCount} stations` : '';
       if (state._enabled && active.length === 0) {
         return {
-          count: 0,
+          count: stationCount,
           lastUpdate: state._lastUpdate,
           error: null,
-          source: 'GTFS-RT',
+          source: 'GTFS-RT · SNCF',
           status: 'zoom-in',
           // English data (the analyst's empty note to the model); the voice
           // card shows it through NOTE_PATTERNS (voice/resultDisplay.js).
-          coverage: state._altitudeGateOpen
-            ? `No feed here yet · ${TRANSIT_ENABLED_FEEDS.length} regions available`
-            : `Fly below ${Math.round(ACTIVATION_ALTITUDE_M / 1000).toLocaleString('en-US')} km to a covered region`,
+          // The station network is already drawn, so the prompt is about the
+          // live fleet only.
+          coverage:
+            (state._altitudeGateOpen
+              ? `No feed here yet · ${TRANSIT_ENABLED_FEEDS.length} regions available`
+              : `Fly below ${Math.round(ACTIVATION_ALTITUDE_M / 1000).toLocaleString('en-US')} km to a covered region`) +
+            stationNote,
         };
       }
       // Age is shown by the same rule the row state uses, so the text and the
@@ -270,23 +341,24 @@ export function createQueries({ state, parts }) {
         })
         .join(' · ');
       return {
-        count,
+        count: count + stationCount,
         lastUpdate: state._lastUpdate,
-        error: count === 0 ? health.error : null,
+        error: count === 0 && stationCount === 0 ? health.error : null,
         ...(count === 0 && Number.isFinite(health.retryInSec)
           ? { retryInSec: health.retryInSec }
           : {}),
         degraded: count > 0 && health.degraded,
-        loading: health.loading && count === 0,
+        loading: health.loading && count === 0 && stationCount === 0,
         loadingLabel:
           // i18n-ignore: English data, translated on display (ui/statusText.js)
           health.loading && count === 0
             ? `Loading ${active.map((feed) => feed.name).join(', ')}`
             : undefined,
         stale: health.stale,
-        source: 'GTFS-RT',
-        coverage,
+        source: 'GTFS-RT · SNCF',
+        coverage: coverage + stationNote,
         feeds: active.map((feed) => feed.id),
+        stations: stationCount,
       };
     },
   };

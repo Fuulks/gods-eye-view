@@ -49,10 +49,12 @@ test('the complete Realtime tool payload pins the manifest-generated layer relea
     // The Operator HUD layout leaves set_hud's layout enum.
     'f47a7f78f13b1f79978fa524fad2618e32bd813e1a5dfd746bf35d29909fc91b',
     // The five C3 data-source layers extend the voice layer manifest too, so the
+    // The five C3 data-source layers extend the voice layer manifest too, so the
     // generated layer enums and aliases change; the pin moves with them.
-    // The Velib' stations layer extends the manifest once more; the pin moves
-    // with it, and the guardrail stays.
-    '2dc8ece4def7b71f2a61288e6cce192c5d9a5dd4667e35d2b96ed060d2d476fa',
+    // The SNCF Stations and Velib' Stations layers were folded into the
+    // pre-existing Transit and Bike Share rows, so the manifest lost two
+    // entries: the pin moves with the manifest, and the guardrail stays.
+    'd8201703e74d4200dd42c6c81069abc61f5ef6c336259c96d66894039820bf51',
   );
 });
 

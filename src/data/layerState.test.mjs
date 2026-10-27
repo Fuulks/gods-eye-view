@@ -202,8 +202,10 @@ function encode(state) {
 
 test('production registry is exact, canonical, and rejects incomplete contracts', async () => {
   assert.equal(validateLayerStateRegistry(), true);
-  assert.equal(REGISTERED_LAYER_IDS.length, 38);
-  assert.equal(new Set(REGISTERED_LAYER_IDS).size, 38);
+  // The SNCF and Velib standalone rows were folded into Transit and
+  // Bike Share, so the registry shrank by those two layers.
+  assert.equal(REGISTERED_LAYER_IDS.length, 36);
+  assert.equal(new Set(REGISTERED_LAYER_IDS).size, 36);
   assert.ok(REGISTERED_LAYER_IDS.includes('transit'));
   assert.deepEqual(REGISTERED_LAYER_IDS, [...REGISTERED_LAYER_IDS].sort());
   assert.deepEqual(LEGACY_LAYER_STATE_TOKENS, {
@@ -242,25 +244,24 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
   for (const [id, token] of Object.entries(LEGACY_LAYER_STATE_TOKENS)) {
     assert.equal(LAYER_STATE_TOKEN_RESERVATIONS[id], token);
   }
-  // Every single-character token is taken (upstream 0-5, ours 6-9) and the
-  // first two-character ones are ours too ('00' ign-geoplateforme, '01'
-  // velib-stations), so the next free token is '02'.
-  assert.equal(nextLayerStateToken(), '02');
+  // Every single-character token is taken (upstream 0-5, ours 6-9) and no
+  // two-character token is, so the next free token is 00.
+  assert.equal(nextLayerStateToken(), '00');
   assert.equal(
     nextLayerStateToken({
       ...LAYER_STATE_TOKEN_RESERVATIONS,
-      alpha: '02',
-      bravo: '03',
+      alpha: '00',
+      bravo: '01',
     }),
-    '04',
+    '02',
   );
   const digitsExhausted = {
     ...LAYER_STATE_TOKEN_RESERVATIONS,
   };
-  assert.equal(nextLayerStateToken(digitsExhausted), '02');
+  assert.equal(nextLayerStateToken(digitsExhausted), '00');
   assert.equal(
-    nextLayerStateToken({ ...digitsExhausted, retired: '02', used: '03' }),
-    '04',
+    nextLayerStateToken({ ...digitsExhausted, retired: '00', used: '01' }),
+    '02',
   );
   assert.equal(
     nextLayerStateToken({
@@ -299,16 +300,16 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
   );
   assert.equal(
     validateLayerStateRegistry(
-      [{ id: 'future-layer', token: '03', disposition: 'enabled-only' }],
-      { retired: '02', 'future-layer': '03' },
+      [{ id: 'future-layer', token: '02', disposition: 'enabled-only' }],
+      { retired: '01', 'future-layer': '02' },
     ),
     true,
   );
   assert.equal(
     validateLayerStateAllocations(LAYER_STATE_TOKEN_RESERVATIONS, {
       ...LAYER_STATE_TOKEN_RESERVATIONS,
-      future: '02',
-      next: '03',
+      future: '00',
+      next: '01',
     }),
     true,
   );
@@ -316,13 +317,15 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
     () =>
       validateLayerStateAllocations(LAYER_STATE_TOKEN_RESERVATIONS, {
         ...LAYER_STATE_TOKEN_RESERVATIONS,
-        future: '03',
+        future: '01',
       }),
-    /next free token 02/,
+    /next free token 00/,
   );
-  // Freeing sncf-stations' digit makes '6' the next free token again.
+  // Freeing a digit makes it the next free token again: a retired row does
+  // not hold its digit for ever.
   const beforeLastDigit = { ...digitsExhausted };
-  delete beforeLastDigit['sncf-stations'];
+  delete beforeLastDigit['vigicrues-floods'];
+  beforeLastDigit['6'] = '7';
   assert.equal(
     validateLayerStateAllocations(beforeLastDigit, {
       ...beforeLastDigit,
@@ -333,18 +336,18 @@ test('production registry is exact, canonical, and rejects incomplete contracts'
   assert.equal(
     validateLayerStateAllocations(digitsExhausted, {
       ...digitsExhausted,
-      pairB: '03',
-      pairA: '02',
+      pairB: '00',
+      pairA: '01',
     }),
     true,
   );
   assert.throws(
     () =>
       validateLayerStateAllocations(
-        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '02' },
-        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '02', competing: '02' },
+        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '00' },
+        { ...LAYER_STATE_TOKEN_RESERVATIONS, merged: '00', competing: '00' },
       ),
-    /next free token 03/,
+    /next free token 01/,
   );
   assert.throws(
     () => validateLayerStateAllocations({ future: '00' }, { future: '01' }),

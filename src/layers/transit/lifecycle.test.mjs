@@ -200,6 +200,7 @@ function harness(
   const originalWindow = globalThis.window;
   globalThis.window = new EventTarget();
 
+  const dataSources = [];
   const preRender = new Cesium.Event();
   const cameraChanged = new Cesium.Event();
   const viewer = {
@@ -218,6 +219,19 @@ function harness(
           viewRect.east,
           viewRect.north,
         );
+      },
+    },
+    // The Transit layer also owns the French passenger-station data source,
+    // so the harness gives it the collection the layer adds it to.
+    dataSources: {
+      add(value) {
+        dataSources.push(value);
+        return value;
+      },
+      remove(value) {
+        const index = dataSources.indexOf(value);
+        if (index >= 0) dataSources.splice(index, 1);
+        return index >= 0;
       },
     },
     scene: {

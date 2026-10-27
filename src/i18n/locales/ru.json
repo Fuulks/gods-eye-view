@@ -3124,7 +3124,6 @@
   "French topographic base map · IGN Géoplateforme (Plan IGN v2)": "Французская топографическая подложка · IGN Géoplateforme (Plan IGN v2)",
   "IGN Géoplateforme · Plan IGN v2": "IGN Géoplateforme · Plan IGN v2",
   "Station network unavailable": "Сеть станций недоступна",
-  "SNCF Stations": "Станции SNCF",
   "No stations available": "Нет доступных станций",
   "No current stations": "Нет текущих станций",
   "{count} stations mapped": {
@@ -3133,7 +3132,6 @@
     "many": "{count} станций на карте",
     "other": "{count} станции на карте"
   },
-  "French passenger stations (2 792 SNCF network) — station network, not live train positions": "Французские пассажирские станции (сеть SNCF из 2 792) — сеть станций, а не текущее положение поездов",
   "Malformed station response": "Некорректный ответ со списком станций",
   "Flood feed unavailable": "Лента наводнений недоступна",
   "Flood Warnings": "Предупреждения о наводнениях",
@@ -3149,15 +3147,13 @@
   "Reference Maps": "Референсные карты",
   "European electricity load and day-ahead prices (Transparency Platform)": "Европейская электрическая нагрузка и цены на сутки вперёд (Платформа прозрачности)",
   "Scheduled timetables and live vehicle positions from the global GTFS catalog. The key is required.": "Расписания и позиции транспорта в реальном времени из глобального каталога GTFS. Ключ обязателен.",
-  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "Ближайшие отправления, сообщения о ситуации на дорогах и данные маршрутизации Парижского региона из каталога API PRIM. Ключ обязателен.",  "Vélib' Stations": "Станции Vélib'",
+  "Paris-region next departures, traffic messages and itinerary data from the PRIM API catalog. The key is required.": "Ближайшие отправления, сообщения о ситуации на дорогах и данные маршрутизации Парижского региона из каталога API PRIM. Ключ обязателен.",
   "{count} bikes on the ground": {
     "one": "{count} велосипед на станции",
     "few": "{count} велосипеда на станциях",
     "many": "{count} велосипедов на станциях",
     "other": "{count} велосипеда на станциях"
   },
-  "Paris docked bike share (1 519 Vélib' stations) — live availability per station, not per bike": "Парижский велопрокат со станциями (1 519 станций Vélib') — наличие в реальном времени по станциям, а не по велосипедам",
-  "Empty": "Пусто",
-  "Good": "Много",
-  "Plenty": "Очень много"
+  "Live transit vehicles and the French passenger-station network (2 792 SNCF stations) — the stations are a network, not live train positions": "Транспорт в реальном времени и сеть французских пассажирских станций (2 792 станции SNCF) — станции — это сеть, а не текущие положения поездов",
+  "City docked bike share, Paris and 62 other cities — live availability per station, not per bike": "Городский велосипед с станциями: Париж и 62 других города — наличие в реальном времени по станциям, а не по велосипедам"
 }

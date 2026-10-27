@@ -1,5 +1,21 @@
 import * as Cesium from 'cesium';
 
+/**
+ * A portable export (package.json): no i18n here. The label stays English
+ * data; the Layers panel shows it translated.
+ */
+const msg = (text) => text;
+
+/**
+ * The Bike Share row's own description of what it shows. The row shows this,
+ * so the merged coverage is stated rather than implied: the city GBFS
+ * networks, Paris and Velib among them, each with live availability per
+ * station rather than per bike.
+ */
+export const BIKESHARE_DESCRIPTION = msg(
+  'City docked bike share, Paris and 62 other cities — live availability per station, not per bike',
+);
+
 export const BIKESHARE_SELECTED_OVERLAY_SOURCE_ID = 'bikeshare-selected';
 
 export const BIKESHARE_SELECTED_OVERLAY_SOURCE_OPTIONS = Object.freeze({
