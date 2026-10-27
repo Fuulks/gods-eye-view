@@ -63,7 +63,9 @@ export function entsoeLoadBand(value, max) {
  * @returns {string} Hex colour.
  */
 export function entsoeBandColor(band) {
-  const found = ENTSOE_LOAD_BANDS.find((entry) => entry.id === String(band ?? ''));
+  const found = ENTSOE_LOAD_BANDS.find(
+    (entry) => entry.id === String(band ?? ''),
+  );
   return found ? found.color : ENTSOE_LOAD_BANDS[0].color;
 }
 

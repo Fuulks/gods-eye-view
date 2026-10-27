@@ -26,7 +26,8 @@ const STATION_MARKER_RADIUS_M = 4_000;
 export function createSncfStationsLayer({ source, overlayHost } = {}) {
   if (typeof source?.getSnapshot !== 'function')
     throw new TypeError('SNCF stations require a snapshot source');
-  if (!overlayHost) throw new TypeError('SNCF stations require an overlay host');
+  if (!overlayHost)
+    throw new TypeError('SNCF stations require an overlay host');
   let _viewer = null;
   let _request = null;
   let _dataSource = null;
@@ -48,7 +49,8 @@ export function createSncfStationsLayer({ source, overlayHost } = {}) {
     updateInterval: 6 * 3600_000,
 
     init(viewer) {
-      if (_viewer) throw new Error('SNCF stations layer is already initialized');
+      if (_viewer)
+        throw new Error('SNCF stations layer is already initialized');
       _viewer = viewer;
       _dataSource = new Cesium.CustomDataSource('sncf-stations');
       _dataSource.show = false;
@@ -114,7 +116,10 @@ export function createSncfStationsLayer({ source, overlayHost } = {}) {
       _dataSource.entities.removeAll();
       const overlayEntries = [];
       for (const station of _stations) {
-        const position = Cesium.Cartesian3.fromDegrees(station.lon, station.lat);
+        const position = Cesium.Cartesian3.fromDegrees(
+          station.lon,
+          station.lat,
+        );
         const color = Cesium.Color.fromCssColorString(station.color);
         _dataSource.entities.add(
           new Cesium.Entity({
@@ -201,11 +206,7 @@ export function createSncfStationsLayer({ source, overlayHost } = {}) {
               ? _lastUpdate === null
                 ? t('No stations available')
                 : t('No current stations')
-              : tn(
-                  _count,
-                  '{count} station mapped',
-                  '{count} stations mapped',
-                ),
+              : tn(_count, '{count} station mapped', '{count} stations mapped'),
         },
       };
     },

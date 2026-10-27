@@ -51,7 +51,9 @@ export const SNCF_UNKNOWN_COLOR = '#adb5bd';
 
 /** Accent colour for a rail segment id. */
 export function sncfSegmentColor(segment) {
-  const key = String(segment ?? '').trim().toUpperCase();
+  const key = String(segment ?? '')
+    .trim()
+    .toUpperCase();
   return SNCF_SEGMENT_COLORS[key] || SNCF_UNKNOWN_COLOR;
 }
 
@@ -79,7 +81,10 @@ export function normalizeSncfStationPayload(payload) {
     if (Math.abs(lon) > 180 || Math.abs(lat) > 90) continue;
     if (seen.has(id)) continue;
     seen.add(id);
-    const segment = String(raw?.segment ?? '').trim().toUpperCase() || null;
+    const segment =
+      String(raw?.segment ?? '')
+        .trim()
+        .toUpperCase() || null;
     stations.push({
       id,
       name: String(raw?.name ?? '').trim() || id,
@@ -147,7 +152,10 @@ export function createSncfOverlayEntry({ id, position, title, accent }) {
 }
 
 /** Keep a bounded cohort of labels, with stable identity as the tie-break. */
-export function selectSncfOverlayCohort(entries, limit = SNCF_OVERLAY_COHORT_LIMIT) {
+export function selectSncfOverlayCohort(
+  entries,
+  limit = SNCF_OVERLAY_COHORT_LIMIT,
+) {
   const cap = Math.max(
     0,
     Math.min(SNCF_OVERLAY_COHORT_LIMIT, Math.floor(Number(limit) || 0)),

@@ -48,7 +48,8 @@ export function createCopernicusEmsLayer({ source, overlayHost } = {}) {
     updateInterval: 30 * 60_000,
 
     init(viewer) {
-      if (_viewer) throw new Error('Copernicus EMS layer is already initialized');
+      if (_viewer)
+        throw new Error('Copernicus EMS layer is already initialized');
       _viewer = viewer;
       _dataSource = new Cesium.CustomDataSource('copernicus-ems');
       _dataSource.show = false;

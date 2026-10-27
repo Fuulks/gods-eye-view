@@ -48,9 +48,10 @@ export const EMS_MAX_ACTIVATIONS = 500;
  */
 export function parseEmCentroid(wkt) {
   const text = String(wkt || '').trim();
-  const match = /^POINT\s*\(\s*([-+]?\d+(?:\.\d+)?)\s+([-+]?\d+(?:\.\d+)?)\s*\)$/i.exec(
-    text,
-  );
+  const match =
+    /^POINT\s*\(\s*([-+]?\d+(?:\.\d+)?)\s+([-+]?\d+(?:\.\d+)?)\s*\)$/i.exec(
+      text,
+    );
   if (!match) return null;
   const lon = Number(match[1]);
   const lat = Number(match[2]);
@@ -82,7 +83,11 @@ export const EMS_CATEGORIES = Object.freeze([
   Object.freeze({ id: 'storm', label: 'Storm', color: '#a78bfa' }),
   Object.freeze({ id: 'landslide', label: 'Landslide', color: '#c9a227' }),
   Object.freeze({ id: 'drought', label: 'Drought', color: '#e9c46a' }),
-  Object.freeze({ id: 'volcanic', label: 'Volcanic activity', color: '#f77f00' }),
+  Object.freeze({
+    id: 'volcanic',
+    label: 'Volcanic activity',
+    color: '#f77f00',
+  }),
   Object.freeze({ id: 'chemical', label: 'Chemical', color: '#48cae4' }),
   Object.freeze({ id: 'biological', label: 'Biological', color: '#80ed99' }),
   Object.freeze({ id: 'other', label: 'Other', color: '#adb5bd' }),
@@ -94,8 +99,9 @@ const CATEGORY_BY_SLUG = new Map(
 
 /** The colour a category is drawn in; unknown categories are neutral. */
 export function emsCategoryColor(slug) {
-  return CATEGORY_BY_SLUG.get(String(slug || '').toLowerCase())?.color ||
-    '#adb5bd';
+  return (
+    CATEGORY_BY_SLUG.get(String(slug || '').toLowerCase())?.color || '#adb5bd'
+  );
 }
 
 /** The label for a category slug. */
@@ -131,7 +137,9 @@ export function normalizeEmActivation(raw, index = 0) {
   const categorySlug = String(raw?.category?.slug ?? '')
     .trim()
     .toLowerCase();
-  const phase = String(raw?.drmPhase ?? '').trim().toLowerCase();
+  const phase = String(raw?.drmPhase ?? '')
+    .trim()
+    .toLowerCase();
   const countries = Array.isArray(raw?.countries)
     ? raw.countries
         .map((entry) => String(entry?.short_name ?? '').trim())
@@ -158,9 +166,7 @@ export function normalizeEmActivation(raw, index = 0) {
     lat: position.lat,
     activationTime: activationTime || null,
     lastUpdate: lastUpdate || null,
-    aoiCount: Number.isFinite(Number(raw?.n_aois))
-      ? Number(raw.n_aois)
-      : null,
+    aoiCount: Number.isFinite(Number(raw?.n_aois)) ? Number(raw.n_aois) : null,
     productCount: Number.isFinite(Number(raw?.n_products))
       ? Number(raw.n_products)
       : null,

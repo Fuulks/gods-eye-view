@@ -126,8 +126,12 @@ export function createApplicationCatalog({
         }),
         createApplicationEarthquakes({ source: sources.earthquakes }),
         createApplicationSncfStations({ source: sources['sncf-stations'] }),
-        createApplicationVigicruesFloods({ source: sources['vigicrues-floods'] }),
-        createApplicationIgnGeoplateforme({ source: sources['ign-geoplateforme'] }),
+        createApplicationVigicruesFloods({
+          source: sources['vigicrues-floods'],
+        }),
+        createApplicationIgnGeoplateforme({
+          source: sources['ign-geoplateforme'],
+        }),
         createApplicationEntsoeGrid({ source: sources['entsoe-grid'] }),
         createApplicationCopernicusEms({ source: sources['copernicus-ems'] }),
         createApplicationAirQuality({ source: sources['air-quality'] }),

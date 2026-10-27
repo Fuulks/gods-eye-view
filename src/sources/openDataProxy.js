@@ -73,7 +73,8 @@ export function openDataRedirectDecision(origin, location) {
   } catch {
     return { ok: false, reason: 'bad-origin' };
   }
-  if (target.origin !== base.origin) return { ok: false, reason: 'cross-origin' };
+  if (target.origin !== base.origin)
+    return { ok: false, reason: 'cross-origin' };
   return { ok: true, url: target.toString() };
 }
 
@@ -140,14 +141,17 @@ export function createOpenDataService({
   let closed = false;
 
   const reply = (status, payload, headers = {}) =>
-    new Response(typeof payload === 'string' ? payload : JSON.stringify(payload), {
-      status,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8',
-        'Cache-Control': 'no-store',
-        ...headers,
+    new Response(
+      typeof payload === 'string' ? payload : JSON.stringify(payload),
+      {
+        status,
+        headers: {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Cache-Control': 'no-store',
+          ...headers,
+        },
       },
-    });
+    );
 
   const cacheHeaders = (state, host, at) => ({
     'X-GEV-Cache': state,
@@ -180,7 +184,8 @@ export function createOpenDataService({
       } catch {
         /* no-op */
       }
-      if (!decision.ok) throw new Error(`upstream redirect refused (${decision.reason})`);
+      if (!decision.ok)
+        throw new Error(`upstream redirect refused (${decision.reason})`);
       if (hop === OPEN_DATA_MAX_REDIRECTS) {
         throw new Error('upstream redirected too many times');
       }
@@ -201,7 +206,11 @@ export function createOpenDataService({
         error.upstreamStatus = response.status;
         throw error;
       }
-      const payload = await readResponseJsonCapped(response, maxBytes, controller.signal);
+      const payload = await readResponseJsonCapped(
+        response,
+        maxBytes,
+        controller.signal,
+      );
       if (closed) throw new Error('Open data provider closed');
       const shaped = normalize ? normalize(payload, route) : payload;
       const entry = {
@@ -247,7 +256,9 @@ export function createOpenDataService({
       return reply(405, { error: 'Method Not Allowed' });
     }
     const url = new URL(incoming.url);
-    const route = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
+    const route = decodeURIComponent(
+      url.pathname.split('/').filter(Boolean).pop() || '',
+    );
     if (!routeMap.has(route) && typeof loader !== 'function') {
       return reply(404, { error: 'Unknown data route' });
     }
@@ -280,9 +291,16 @@ export function createOpenDataService({
         {
           error: 'Upstream cooling down',
           route,
-          retryInSec: Math.max(1, Math.ceil((waiting.nextAttemptAt - now) / 1000)),
+          retryInSec: Math.max(
+            1,
+            Math.ceil((waiting.nextAttemptAt - now) / 1000),
+          ),
         },
-        { 'Retry-After': String(Math.max(1, Math.ceil((waiting.nextAttemptAt - now) / 1000))) },
+        {
+          'Retry-After': String(
+            Math.max(1, Math.ceil((waiting.nextAttemptAt - now) / 1000)),
+          ),
+        },
       );
     }
 
@@ -307,7 +325,11 @@ export function createOpenDataService({
       return reply(
         200,
         fresh.body,
-        cacheHeaders(request.shared ? 'INFLIGHT' : 'MISS', fresh.host, fresh.at),
+        cacheHeaders(
+          request.shared ? 'INFLIGHT' : 'MISS',
+          fresh.host,
+          fresh.at,
+        ),
       );
     } catch (error) {
       if (!request.shared) {
@@ -329,14 +351,11 @@ export function createOpenDataService({
       }
       const mapped = onError?.(error);
       if (mapped) return reply(mapped.status, mapped.payload);
-      return reply(
-        error?.upstreamStatus ? 502 : 504,
-        {
-          error: 'Upstream unavailable',
-          route,
-          detail: error?.message || String(error),
-        },
-      );
+      return reply(error?.upstreamStatus ? 502 : 504, {
+        error: 'Upstream unavailable',
+        route,
+        detail: error?.message || String(error),
+      });
     }
   }
 

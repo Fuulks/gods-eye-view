@@ -252,9 +252,7 @@ export async function hydrateVigicruesStations({
     if (hydrated || consecutiveThrottle) await sleep(STATION_SWEEP_DELAY_MS);
     try {
       const response = await fetchImpl(
-        STATION_DETAIL_URL +
-          '?CdStationHydro=' +
-          encodeURIComponent(id),
+        STATION_DETAIL_URL + '?CdStationHydro=' + encodeURIComponent(id),
         { signal, redirect: 'manual', headers: { Accept: 'application/json' } },
       );
       if (response.status === 429) {
