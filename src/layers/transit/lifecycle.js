@@ -8,6 +8,7 @@ import {
   CAMERA_PERCENTAGE_CHANGED,
   TRANSIT_SELECTED_OVERLAY_SOURCE_ID,
 } from './policy.js';
+import { TRANSIT_STATIONS_OVERLAY_SOURCE_ID } from './stations.js';
 import { TRANSIT_ENABLED_FEEDS } from '../../data/transitFeeds.js';
 
 /**
@@ -119,7 +120,10 @@ export function createLifecycle({ state, services, parts }) {
     id: 'transit',
     name: 'Transit',
     icon: '🚌',
-    source: 'GTFS-RT',
+    // The row covers BOTH the live GTFS-RT fleet and the French rail
+    // network's passenger stations. The meta line is narrow, so the source
+    // stays two short tokens joined by a separator, with no parenthetical.
+    source: 'GTFS-RT · SNCF',
 
     /**
      * Create the point collection. Called once at bootstrap.
@@ -139,6 +143,21 @@ export function createLifecycle({ state, services, parts }) {
       registerSpriteCollection('transit-motion', state._animatedMarkers);
       state._animatedMarkers.show = false;
       state._markers.show = false;
+      // The station network is a SECOND display the Transit row owns: the
+      // live fleet's billboards and the French rail network's ground
+      // ellipses, side by side on one row.
+      if (!state._stationDataSource) {
+        state._stationDataSource = new Cesium.CustomDataSource(
+          'transit-stations',
+        );
+        state._stationDataSource.show = false;
+        viewer.dataSources.add(state._stationDataSource);
+      }
+      state._stations = [];
+      state._stationTotal = 0;
+      state._stationUpdatedAt = null;
+      state._stationError = null;
+      state._overlayHost.setVisible(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, false);
       state._enabled = false;
       state._activeFeeds.clear();
       state._feedStatus.clear();
@@ -178,6 +197,14 @@ export function createLifecycle({ state, services, parts }) {
       state._error = null;
       state._markers.show = true;
       state._animatedMarkers.show = true;
+      if (state._stationDataSource) state._stationDataSource.show = true;
+      state._overlayHost.setVisible(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, true);
+      // The station catalogue is STATIC: it is read once per enable and
+      // never re-polled, so it does not follow the fleet's camera-driven
+      // proximity gate. A French rail network that only appeared when the
+      // camera dropped below the fleet's altitude gate would look broken
+      // from a global view, and the catalogue is one small cached read.
+      void parts.stations.loadStations();
       state._maintenanceTimer = setInterval(
         parts.rendering.maintainPresentation,
         250,
@@ -220,6 +247,10 @@ export function createLifecycle({ state, services, parts }) {
       state._cameraDebounceTimer = null;
       parts.selection.clearSelection();
       state._overlayHost.setVisible(TRANSIT_SELECTED_OVERLAY_SOURCE_ID, false);
+      state._overlayHost.setVisible(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, false);
+      state._overlayHost.clearSource(TRANSIT_STATIONS_OVERLAY_SOURCE_ID);
+      parts.stations.abortStations();
+      if (state._stationDataSource) state._stationDataSource.show = false;
       parts.selection.removeClickHandler();
       unregisterPickOwner('transit');
       if (state._cameraChangedAttached) {
@@ -293,6 +324,16 @@ export function createLifecycle({ state, services, parts }) {
         state._animatedMarkers = null;
       }
       state._overlayHost.clearSource(TRANSIT_SELECTED_OVERLAY_SOURCE_ID);
+      state._overlayHost.clearSource(TRANSIT_STATIONS_OVERLAY_SOURCE_ID);
+      state._overlayHost.setVisible(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, false);
+      if (state._stationDataSource) {
+        viewer?.dataSources?.remove(state._stationDataSource, true);
+        state._stationDataSource = null;
+      }
+      state._stations = [];
+      state._stationTotal = 0;
+      state._stationUpdatedAt = null;
+      state._stationError = null;
       parts.height.clear();
       unbindStyleEvents();
       state._dataManager = null;

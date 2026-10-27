@@ -31,10 +31,8 @@
   ["weather-radar", "v"],
   ["weather-satellite", "o"],
   ["wind", "k"],
-  ["sncf-stations", "6"],
-  ["vigicrues-floods", "7"],
-  ["entsoe-grid", "8"],
-  ["copernicus-ems", "9"],
-  ["ign-geoplateforme", "00"],
-  ["velib-stations", "01"]
+  ["vigicrues-floods", "6"],
+  ["entsoe-grid", "7"],
+  ["copernicus-ems", "8"],
+  ["ign-geoplateforme", "9"]
 ]

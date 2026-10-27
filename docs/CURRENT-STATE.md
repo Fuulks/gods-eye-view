@@ -1693,11 +1693,32 @@ their GBFS tree: `api.entur.io` to `/mobility/v2/gbfs/` and `api.cyclocity.fr`
 
 ## French public-data layers (C3 data sources)
 
-Five toggleable layers read French and European open-data feeds: SNCF
-Stations (`sncf-stations`), Flood Warnings (`vigicrues-floods`), European
-Grid (`entsoe-grid`), Copernicus EMS (`copernicus-ems`) and IGN Plan IGN
-(`ign-geoplateforme`). They sit in the Movement, Weather, Infrastructure,
-Events and Reference Maps groups respectively, and each one is off by default.
+Four toggleable layers read French and European open-data feeds: Flood
+Warnings (`vigicrues-floods`), European Grid (`entsoe-grid`), Copernicus EMS
+(`copernicus-ems`) and IGN Plan IGN (`ign-geoplateforme`). They sit in the
+Weather, Infrastructure, Events and Reference Maps groups respectively, and
+each one is off by default.
+
+The French public data that could have been two more rows is folded into the
+rows that already existed, so the Layers panel keeps one Transit row and one
+Bike Share row. The Transit row (`transit`) draws the live GTFS-RT fleet AND
+the SNCF passenger-station network (2 792 stations, a STATIC catalogue and not
+live train positions), and names both in its source line as
+`GTFS-RT · SNCF`. The station network is read from `/api/sncf/stations` and
+drawn as ground ellipses clamped to the terrain, with its labels under the
+overlay source `transit-stations`. Because the catalogue is static it loads
+with the layer, NOT on the fleet's camera-driven altitude gate: a national rail
+network that only appeared once the camera dropped into a live GTFS-RT
+coverage area would read as broken from any wider view.
+
+The Bike Share row (`bikeshare`) gains Paris and the Vélib' Métropole
+network (1 519 stations with live bike, e-bike and free-dock availability) as
+one more city entry in `src/layers/bikeshare/registry.js`. It is read through
+the SAME generic `/api/gbfs/<encoded-url>` proxy and the SAME GBFS parser every
+other city uses; the operator's documents match that parser exactly
+(`data.stations[]` with `station_id`, `lat`, `lon`, `name`, `capacity`, and
+`num_bikes_available` / `num_docks_available` in the status document), so no
+dedicated Vélib' provider or route is kept.
 
 Every one of these feeds is read through a server-side proxy. The browser
 names a local route (`/api/sncf/stations`, `/api/vigicrues/stations`,
@@ -1736,12 +1757,11 @@ the Provider Settings panel. Copernicus EMS activation centroids arrive as WKT
 upstream's own order so a hazard is not placed in the wrong hemisphere.
 
 The layer-state token allocation takes the next free tokens in reservation
-order: `sncf-stations`=5, `vigicrues-floods`=6, `entsoe-grid`=7,
-`copernicus-ems`=8, `ign-geoplateforme`=9. The JSON token ledger and
-`LAYER_STATE_REGISTRY` agree, and the registry holds 36 reservations where
-upstream held 31.
+order: `vigicrues-floods`=6, `entsoe-grid`=7, `copernicus-ems`=8,
+`ign-geoplateforme`=9. The JSON token ledger and `LAYER_STATE_REGISTRY` agree,
+and the registry holds 36 reservations where upstream held 32.
 
-The five layers add 62 UI strings, translated into es, ru and zh-CN and
+The four layers add 62 UI strings, translated into es, ru and zh-CN and
 appended to the catalogs in the existing order (the catalogs are ordered by
 code discovery, not alphabetically). The POWER UP panel lists the two
 key-gated transport providers, GTFS and PRIM, in the key registry; the three

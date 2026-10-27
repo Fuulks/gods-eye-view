@@ -28,8 +28,6 @@ test('panel presentation places Transit between Street Traffic and Bike Share in
       'traffic',
       'transit',
       'bikeshare',
-      'sncf-stations',
-      'velib-stations',
     ],
   );
   assert.equal(order.filter(({ id }) => id === 'transit').length, 1);

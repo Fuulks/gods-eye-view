@@ -265,21 +265,6 @@ const layers = [
     noQuery: 'map overlay; no countable records',
   },
   {
-    id: 'sncf-stations',
-    aliases: ['sncf', 'stations', 'gares', 'train stations'],
-    context: false,
-    query: {
-      fields: {
-        name: ['t'],
-        shortCode: ['t'],
-        uic: ['t'],
-        segment: ['t'],
-        lat: ['n'],
-        lon: ['n'],
-      },
-    },
-  },
-  {
     id: 'vigicrues-floods',
     aliases: ['floods', 'flood warning', 'vigicrues', 'river sensors'],
     context: false,
@@ -325,24 +310,6 @@ const layers = [
     },
   },
   {
-    id: 'velib-stations',
-    aliases: ['velib', 'velib metropole', 'bike share paris', 'paris bikes'],
-    context: false,
-    query: {
-      fields: {
-        name: ['t'],
-        code: ['t'],
-        bikes: ['n'],
-        eBikes: ['n'],
-        mechanical: ['n'],
-        docks: ['n'],
-        band: ['t'],
-        lat: ['n'],
-        lon: ['n'],
-      },
-    },
-  },
-  {
     id: 'ign-geoplateforme',
     aliases: ['ign', 'ign map', 'plan ign', 'french basemap', 'geoplateforme'],
     context: false,
@@ -374,7 +341,16 @@ const layers = [
   },
   {
     id: 'transit',
-    aliases: ['buses', 'trains', 'public transit', 'trams', 'subway'],
+    aliases: [
+      'buses',
+      'trains',
+      'public transit',
+      'trams',
+      'subway',
+      'sncf',
+      'gares',
+      'train stations',
+    ],
     context: false,
     query: {
       fields: {
@@ -384,12 +360,24 @@ const layers = [
         courseDeg: ['n', 'deg'],
         status: ['t'],
         occupancy: ['t'],
+        name: ['t'],
+        shortCode: ['t'],
+        uic: ['t'],
+        segment: ['t'],
       },
     },
   },
   {
     id: 'bikeshare',
-    aliases: ['bike share', 'bikes', 'bike stations'],
+    aliases: [
+      'bike share',
+      'bikes',
+      'bike stations',
+      'velib',
+      'velib metropole',
+      'bike share paris',
+      'paris bikes',
+    ],
     context: false,
     query: {
       fields: {

@@ -8,6 +8,7 @@ import { createIngestion } from './ingestion.js';
 import { createViewport } from './viewport.js';
 import { createQueries } from './queries.js';
 import { createControls } from './controls.js';
+import { createStationNetwork } from './stations.js';
 import { createLifecycle } from './lifecycle.js';
 import { createTesting } from './testing.js';
 import { TRANSIT_POLL_MS } from './policy.js';
@@ -48,6 +49,7 @@ export function createTransitLayer({
   parts.height = createHeight(context);
   parts.selection = createSelection(context);
   parts.rendering = createRendering(context);
+  parts.stations = createStationNetwork(context);
   parts.ingestion = createIngestion(context);
   parts.viewport = createViewport(context);
   parts.queries = createQueries(context);
@@ -63,6 +65,18 @@ export function createTransitLayer({
     parts.testing,
   );
 }
+
+export {
+  TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT,
+  TRANSIT_STATIONS_OVERLAY_COLLISION_CAPACITY,
+  TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
+  TRANSIT_STATION_SEGMENT_COLORS,
+  createTransitStationOverlayEntry,
+  mapTransitStationRecord,
+  normalizeTransitStationPayload,
+  selectTransitStationOverlayCohort,
+  transitStationSegmentColor,
+} from './stations.js';
 
 export {
   TRANSIT_MODE_COLORS,

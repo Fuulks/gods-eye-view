@@ -1,43 +1,39 @@
 /**
- * @module layers/sncfStations/model
+ * @module layers/transit/stationModel
+ * @description The French passenger-station network, normalized. Pure — no
+ * Cesium, no network.
  *
- * The French passenger-station network, normalized. Pure — no Cesium, no
- * network.
- *
- * WHAT THIS LAYER IS, PLAINLY: the SNCF Open Data catalogue's
- * `gares-de-voyageurs` dataset — 2 792 passenger stations with their
- * positions. It is the STATION NETWORK, not live train telemetry. The SNCF
- * catalogue publishes no live vehicle-position dataset (the datasets that
+ * The SNCF Open Data catalogue `gares-de-voyageurs` dataset — 2 792 passenger
+ * stations with their positions, coloured by the rail segment (`segment_drg`)
+ * they belong to. It is the STATION NETWORK, not live train telemetry: the
+ * SNCF catalogue publishes no live vehicle-position dataset (the datasets that
  * sound like one carry zero records, and the GTFS zip is a schedule), so
  * nothing here may be described as a live train position.
+ *
+ * A portable export (package.json): no i18n here. The labels stay English
+ * data; the Layers panel shows them translated.
  */
-// A portable export (package.json): no i18n here. The labels stay English
-// data; the Layers panel shows them translated.
 const msg = (text) => text;
 
-export const SNCF_OVERLAY_SOURCE_ID = 'sncf-stations';
-export const SNCF_OVERLAY_COHORT_LIMIT = 48;
-export const SNCF_OVERLAY_COLLISION_CAPACITY = 32;
+/**
+ * The overlay source the station labels are published under. It is the
+ * Transit's OWN id, not the removed standalone layer's, so the labels live in
+ * the same overlay namespace the Transit row already owns.
+ */
+export const TRANSIT_STATIONS_OVERLAY_SOURCE_ID = 'transit-stations';
 
-/** The dataset this layer draws, named so the row says where it came from. */
-export const SNCF_DATASET = 'gares-de-voyageurs';
+/** How many station labels are published at once. */
+export const TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT = 48;
+
+/** How many labels may share the same collision slot. */
+export const TRANSIT_STATIONS_OVERLAY_COLLISION_CAPACITY = 32;
 
 /**
- * The layer's own description of what it shows. The row shows this, so the
- * coverage and the nature of the data are stated rather than implied.
+ * The colours the rail segments are drawn in. The network segments
+ * (`segment_drg`) group the stations by rail administration; each gets its
+ * own colour so the map reads as a network rather than a scatter.
  */
-export const SNCF_DESCRIPTION = msg(
-  'French passenger stations (2 792 SNCF network) — station network, not live train positions',
-);
-
-/**
- * The colour a station is drawn in.
- *
- * The network segments (`segment_drg`) group the stations by rail
- * administration; each gets its own colour so the map reads as a network
- * rather than a scatter.
- */
-export const SNCF_SEGMENT_COLORS = Object.freeze({
+export const TRANSIT_STATION_SEGMENT_COLORS = Object.freeze({
   A: '#4cc9f0',
   B: '#ffd43b',
   C: '#80ed99',
@@ -47,28 +43,42 @@ export const SNCF_SEGMENT_COLORS = Object.freeze({
 });
 
 /** The colour used for a segment the palette does not name. */
-export const SNCF_UNKNOWN_COLOR = '#adb5bd';
+export const TRANSIT_STATION_UNKNOWN_COLOR = '#adb5bd';
 
-/** Accent colour for a rail segment id. */
-export function sncfSegmentColor(segment) {
+/**
+ * The Transit row's own description of what it shows. The row states the
+ * coverage and the nature of the data, so the merged layer is not
+ * mistaken for live train telemetry: the SNCF catalogue publishes none.
+ */
+export const TRANSIT_STATION_DESCRIPTION = msg(
+  'Live transit vehicles and the French passenger-station network (2 792 SNCF stations) — the stations are a network, not live train positions',
+);
+
+/**
+ * Accent colour for a rail segment id.
+ *
+ * @param {string|null|undefined} segment
+ * @returns {string} Hex colour.
+ */
+export function transitStationSegmentColor(segment) {
   const key = String(segment ?? '')
     .trim()
     .toUpperCase();
-  return SNCF_SEGMENT_COLORS[key] || SNCF_UNKNOWN_COLOR;
+  return TRANSIT_STATION_SEGMENT_COLORS[key] || TRANSIT_STATION_UNKNOWN_COLOR;
 }
 
 /**
  * Validate a proxy payload into a list of station rows.
  *
- * Atomic: a structurally broken payload returns null so the caller keeps
- * its last good snapshot. A station missing coordinates is skipped, since
- * one unusable station is not evidence the payload is broken.
+ * Atomic: a structurally broken payload returns null so the caller keeps its
+ * last good snapshot. A station missing coordinates is skipped, since one
+ * unusable station is not evidence the payload is broken.
  *
  * @param {object} payload The proxy's JSON body.
  * @returns {{stations: Array<object>, total: number}|null} Null when
  *   malformed.
  */
-export function normalizeSncfStationPayload(payload) {
+export function normalizeTransitStationPayload(payload) {
   if (!Array.isArray(payload?.stations)) return null;
   const stations = [];
   const seen = new Set();
@@ -93,7 +103,7 @@ export function normalizeSncfStationPayload(payload) {
       lon,
       lat,
       segment,
-      color: sncfSegmentColor(segment),
+      color: transitStationSegmentColor(segment),
     });
   }
   const total = Number(payload?.total);
@@ -105,11 +115,12 @@ export function normalizeSncfStationPayload(payload) {
 
 /**
  * Map one station to a JSON-safe analyst record.
+ *
  * @param {object|null|undefined} raw
  * @param {number} [index=0]
  * @returns {object}
  */
-export function mapSncfStationRecord(raw, index = 0) {
+export function mapTransitStationRecord(raw, index = 0) {
   const text = (value) => {
     const trimmed = String(value ?? '').trim();
     return trimmed || null;
@@ -128,10 +139,16 @@ export function mapSncfStationRecord(raw, index = 0) {
 
 /**
  * Build the source-owned presentation for one station label.
+ *
  * @param {object} input
  * @returns {object}
  */
-export function createSncfOverlayEntry({ id, position, title, accent }) {
+export function createTransitStationOverlayEntry({
+  id,
+  position,
+  title,
+  accent,
+}) {
   return {
     id: String(id),
     position,
@@ -152,13 +169,16 @@ export function createSncfOverlayEntry({ id, position, title, accent }) {
 }
 
 /** Keep a bounded cohort of labels, with stable identity as the tie-break. */
-export function selectSncfOverlayCohort(
+export function selectTransitStationOverlayCohort(
   entries,
-  limit = SNCF_OVERLAY_COHORT_LIMIT,
+  limit = TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT,
 ) {
   const cap = Math.max(
     0,
-    Math.min(SNCF_OVERLAY_COHORT_LIMIT, Math.floor(Number(limit) || 0)),
+    Math.min(
+      TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT,
+      Math.floor(Number(limit) || 0),
+    ),
   );
   if (!Array.isArray(entries) || cap === 0) return [];
   return entries

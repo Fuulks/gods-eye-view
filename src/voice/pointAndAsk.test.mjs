@@ -351,10 +351,13 @@ test('deixis prompt lint: one short rule, and every sentinel it names exists in 
   // grid, Copernicus EMS, IGN Geoplateforme) extend the voice layer manifest,
   // which grows the tool schemas. The ceiling moves with them; the guardrail
   // stays.
-  // The Velib' stations layer (Paris docked bike share, GBFS) extends the
-  // manifest once more, so the ceiling moves again. The guardrail stays.
+  // The SNCF Stations and Velib' Stations layers were folded into the
+  // pre-existing Transit and Bike Share rows, so the manifest lost two
+  // entries and the prompt shrank to 52 506. The ceiling moves down with
+  // them: it is the measured size, not a loosened bound, and the guardrail
+  // stays.
   const size = instructions.length + JSON.stringify(GEV_REALTIME_TOOLS).length;
-  assert.ok(size <= 52800, `prompt size ${size}`);
+  assert.ok(size <= 52506, `prompt size ${size}`);
 });
 
 
