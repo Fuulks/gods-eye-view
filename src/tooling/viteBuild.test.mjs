@@ -12,6 +12,8 @@ import {
   escapeFsDenyPath,
 } from '../../build/vite.js';
 import standaloneConfig, * as compatibility from '../../vite.config.js';
+import { mergeDotenvIntoEnv } from '../../server/standalone/vite.config.js';
+import { upsertDotenvValues } from '../../src/keySetupCore.mjs';
 import * as providers from '../../server/providers/local.js';
 import { apiNotFoundPlugin } from '../../server/standalone/api-not-found.js';
 import { makeFixtureRoot } from './fixtureRoot.mjs';
@@ -91,6 +93,58 @@ test('explicit build inputs preserve browser-only defines, plugin order and loop
     createBrowserViteConfig({ host: '::', port: '4800' }).server.port,
     4800,
   );
+});
+
+test('an empty environment variable does not shadow the real value in the dotenv file', () => {
+  // The regression: a deployment that exports CESIUM_ION_TOKEN="" (compose
+  // `environment:`, a CI default) made the app bake an EMPTY token into the
+  // browser bundle, because the merge only consulted the file when the
+  // variable was undefined — and "" IS defined.
+  const env = { CESIUM_ION_TOKEN: '' };
+  mergeDotenvIntoEnv({ CESIUM_ION_TOKEN: 'file-token-not-a-real-key' }, env);
+  assert.equal(env.CESIUM_ION_TOKEN, 'file-token-not-a-real-key');
+
+  // A whitespace-only value is empty in the same sense: it carries no key.
+  const blank = { CESIUM_ION_TOKEN: '   ' };
+  mergeDotenvIntoEnv({ CESIUM_ION_TOKEN: 'file-token-not-a-real-key' }, blank);
+  assert.equal(blank.CESIUM_ION_TOKEN, 'file-token-not-a-real-key');
+
+  // A REAL environment value still wins over the file — the shell is the
+  // more specific source, exactly as before.
+  const set = { CESIUM_ION_TOKEN: 'environment-token-not-a-real-key' };
+  mergeDotenvIntoEnv({ CESIUM_ION_TOKEN: 'file-token-not-a-real-key' }, set);
+  assert.equal(set.CESIUM_ION_TOKEN, 'environment-token-not-a-real-key');
+
+  // Undefined stays undefined until the file supplies it.
+  const unset = {};
+  mergeDotenvIntoEnv({ CESIUM_ION_TOKEN: 'file-token-not-a-real-key' }, unset);
+  assert.equal(unset.CESIUM_ION_TOKEN, 'file-token-not-a-real-key');
+});
+
+test('a deliberately cleared key stays empty after the dotenv merge', () => {
+  // The POWER UP panel removes a key by commenting its assignment OUT of the
+  // file (upsertDotenvValues with a null value), so the file no longer
+  // defines the name and the merge has nothing to adopt. The empty variable
+  // the panel left in the environment must survive — that is what "cleared"
+  // means.
+  const env = { CESIUM_ION_TOKEN: '' };
+  mergeDotenvIntoEnv({}, env);
+  assert.equal(env.CESIUM_ION_TOKEN, '');
+
+  // The same for a key the file never mentioned at all.
+  const absent = { GOOGLE_MAPS_API_KEY: '' };
+  mergeDotenvIntoEnv({ CESIUM_ION_TOKEN: 'file-token-not-a-real-key' }, absent);
+  assert.equal(absent.GOOGLE_MAPS_API_KEY, '');
+  assert.equal(absent.CESIUM_ION_TOKEN, 'file-token-not-a-real-key');
+
+  // And the removal is what makes the file stop defining the key: a file
+  // whose assignment is commented out contributes nothing to loadEnv.
+  const store = upsertDotenvValues(
+    'CESIUM_ION_TOKEN=file-token-not-a-real-key\n',
+    { CESIUM_ION_TOKEN: null },
+  );
+  assert.ok(store.includes('# CESIUM_ION_TOKEN='));
+  assert.ok(!/^\s*CESIUM_ION_TOKEN=/m.test(store));
 });
 
 test('build helper does not discover environment values or construct local providers', () => {
