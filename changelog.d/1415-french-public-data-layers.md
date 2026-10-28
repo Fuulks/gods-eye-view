@@ -14,3 +14,20 @@
   through the same generic proxy every other city uses. The station
   catalogue is static, so it loads with the layer rather than following the
   fleet's camera-driven altitude gate (Fuulks, #1415).
+- Give the French public-data rows the same visual grammar as the
+  pre-existing layers, using only the three patterns the Layers panel
+  already has: VIGICRUES becomes a legend of vigilance bands with live
+  counts, the IGN row keeps its place and gains chips that switch the
+  raster basemap, the Transit row gains chips that switch between the
+  live fleet and the station network plus a legend of the rail segments,
+  the Bike Share row shows the availability ramp every city in it is
+  drawn in (Velib' included), and Copernicus EMS and ENTSO-E hand off to
+  a rail card. The Transit row also splits its count into the two
+  populations it draws, so a fleet of vehicles is never counted as
+  stations (Fuulks, #1415).
+- Every layer row now names the DATASET in its source line, never the
+  operator: the operator and the licence stay in DATA_SOURCES.md and the
+  in-app credits (Fuulks, #1415).
+- A healthy layer row reads as three short segments — state, source, age —
+  and the detail segment is reserved for a feed that is degraded, partial,
+  stale or erroring (Fuulks, #1415).

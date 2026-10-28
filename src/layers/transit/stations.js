@@ -149,5 +149,44 @@ export function createStationNetwork({ state, services, parts, source }) {
     }
   }
 
-  return { renderStations, loadStations, abortStations };
+  /**
+   * Show or hide the two halves of the merged row, as the row's chips ask.
+   *
+   * The Transit row draws two different things: the live GTFS-RT fleet and
+   * the static SNCF station network. The chips let the operator see one or
+   * the other, so a country-wide view of the rail network is not buried
+   * under a fleet of buses.
+   *
+   * @param {'both'|'vehicles'|'stations'} display The mode to draw.
+   */
+  function applyDisplayMode(display) {
+    const mode =
+      display === 'vehicles' || display === 'stations' ? display : 'both';
+    if (state._display === mode) return false;
+    state._display = mode;
+    if (!state._enabled) return true;
+    const showVehicles = mode !== 'stations';
+    const showStations = mode !== 'vehicles';
+    if (state._markers) state._markers.show = showVehicles;
+    if (state._animatedMarkers) state._animatedMarkers.show = showVehicles;
+    if (state._stationDataSource) state._stationDataSource.show = showStations;
+    state._overlayHost.setVisible(
+      TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
+      showStations,
+    );
+    if (!showVehicles) {
+      // The selected-vehicle card is about a live vehicle, so it goes with
+      // the fleet rather than lingering over a stations-only view.
+      parts.selection.clearSelection();
+    }
+    governorRequestRender('transit-display-mode');
+    return true;
+  }
+
+  return {
+    renderStations,
+    loadStations,
+    abortStations,
+    applyDisplayMode,
+  };
 }

@@ -46,6 +46,86 @@ export const TRANSIT_STATION_SEGMENT_COLORS = Object.freeze({
 export const TRANSIT_STATION_UNKNOWN_COLOR = '#adb5bd';
 
 /**
+ * The rail segments, in the order the legend shows them.
+ *
+ * The catalogue field is the SNCF network's own administrative grouping of
+ * the passenger stations. The catalogue does NOT publish what each letter
+ * means in so many words, so the legend names the segment by its CODE and
+ * does not invent a service name for it: a legend that claimed a high-speed
+ * service for a segment the operator never called one would be a claim the
+ * data cannot support.
+ *
+ * The colours are the ones the map already draws the segments in, so the
+ * legend and the map cannot drift apart.
+ */
+export const TRANSIT_STATION_SEGMENTS = Object.freeze([
+  Object.freeze({
+    id: 'A',
+    label: msg('Segment A'),
+    color: TRANSIT_STATION_SEGMENT_COLORS.A,
+  }),
+  Object.freeze({
+    id: 'B',
+    label: msg('Segment B'),
+    color: TRANSIT_STATION_SEGMENT_COLORS.B,
+  }),
+  Object.freeze({
+    id: 'C',
+    label: msg('Segment C'),
+    color: TRANSIT_STATION_SEGMENT_COLORS.C,
+  }),
+  Object.freeze({
+    id: 'D',
+    label: msg('Segment D'),
+    color: TRANSIT_STATION_SEGMENT_COLORS.D,
+  }),
+  Object.freeze({
+    id: 'E',
+    label: msg('Segment E'),
+    color: TRANSIT_STATION_SEGMENT_COLORS.E,
+  }),
+  Object.freeze({
+    id: 'F',
+    label: msg('Segment F'),
+    color: TRANSIT_STATION_SEGMENT_COLORS.F,
+  }),
+]);
+
+/**
+ * The legend entries for the station network: one per segment actually
+ * present, plus an entry for the segments the palette does not name.
+ *
+ * @param {Array<object>} stations The station rows currently drawn.
+ * @returns {Array<{id: string, label: string, color: string, count: number}>}
+ */
+export function transitStationSegments(stations = []) {
+  const counts = new Map();
+  let unknown = 0;
+  for (const station of stations) {
+    const key = String(station?.segment ?? '')
+      .trim()
+      .toUpperCase();
+    if (!key || !TRANSIT_STATION_SEGMENT_COLORS[key]) {
+      unknown += 1;
+      continue;
+    }
+    counts.set(key, (counts.get(key) || 0) + 1);
+  }
+  const entries = TRANSIT_STATION_SEGMENTS.filter((segment) =>
+    counts.has(segment.id),
+  ).map((segment) => ({ ...segment, count: counts.get(segment.id) }));
+  if (unknown) {
+    entries.push({
+      id: 'other',
+      label: msg('Other segments'),
+      color: TRANSIT_STATION_UNKNOWN_COLOR,
+      count: unknown,
+    });
+  }
+  return entries;
+}
+
+/**
  * The Transit row's own description of what it shows. The row states the
  * coverage and the nature of the data, so the merged layer is not
  * mistaken for live train telemetry: the SNCF catalogue publishes none.

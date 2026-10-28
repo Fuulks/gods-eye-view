@@ -67,6 +67,40 @@ export const COPERNICUS_CATEGORIES = Object.freeze([
 /** The colour used for a category the palette does not name. */
 export const COPERNICUS_UNKNOWN_COLOR = '#adb5bd';
 
+/**
+ * How long an activation counts as NEW.
+ *
+ * The feed publishes an activation time and a last-update time, so a card
+ * can say whether the activation is fresh or has been running for days.
+ */
+export const COPERNICUS_NEW_WINDOW_MS = 72 * 60 * 60 * 1000;
+
+/**
+ * The status of one activation, as the card's badge shows it.
+ *
+ * The three states are the ones the feed can support: an activation the
+ * operator has closed, one still running, and one that has only just been
+ * raised. The window is the model's own, so the badge and the layer agree.
+ *
+ * @param {object|null|undefined} activation A normalized activation.
+ * @param {number} [now] The reference time, for the test clock.
+ * @returns {'new'|'ongoing'|'closed'} The activation status.
+ */
+export function copernicusActivationStatus(activation, now = Date.now()) {
+  if (!activation) return 'ongoing';
+  if (activation.closed === true) return 'closed';
+  const started = Date.parse(activation.activationTime || '');
+  if (!Number.isFinite(started)) return 'ongoing';
+  return now - started <= COPERNICUS_NEW_WINDOW_MS ? 'new' : 'ongoing';
+}
+
+/** The label for an activation status. */
+export function copernicusActivationStatusLabel(status) {
+  if (status === 'closed') return msg('Closed');
+  if (status === 'new') return msg('New');
+  return msg('Ongoing');
+}
+
 /** Accent colour for a hazard category slug. */
 export function copernicusCategoryColor(slug) {
   const key = String(slug ?? '')

@@ -195,10 +195,18 @@ export function createLifecycle({ state, services, parts }) {
       bindVisibility();
       state._generation += 1;
       state._error = null;
-      state._markers.show = true;
-      state._animatedMarkers.show = true;
-      if (state._stationDataSource) state._stationDataSource.show = true;
-      state._overlayHost.setVisible(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, true);
+      // The row's chips own which half of the merged row is drawn, so an
+      // enable honours the mode the operator last chose.
+      const showVehicles = state._display !== 'stations';
+      const showStations = state._display !== 'vehicles';
+      state._markers.show = showVehicles;
+      state._animatedMarkers.show = showVehicles;
+      if (state._stationDataSource)
+        state._stationDataSource.show = showStations;
+      state._overlayHost.setVisible(
+        TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
+        showStations,
+      );
       // The station catalogue is STATIC: it is read once per enable and
       // never re-polled, so it does not follow the fleet's camera-driven
       // proximity gate. A French rail network that only appeared when the

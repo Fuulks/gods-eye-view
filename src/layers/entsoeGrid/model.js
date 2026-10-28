@@ -58,6 +58,27 @@ export function entsoeLoadBand(value, max) {
 }
 
 /**
+ * The valid time of one hourly point of the day's series.
+ *
+ * The proxy publishes the points by their POSITION in the UTC day (1..24),
+ * so the valid time is the day's midnight plus that many hours. The hour
+ * positions are the forecast's own valid times, not the time it was fetched.
+ *
+ * @param {string|null|undefined} day The UTC day, YYYY-MM-DD.
+ * @param {number} position The hour position in the day.
+ * @returns {string|null} An ISO timestamp, or null when the day is unusable.
+ */
+export function entsoePointValidTime(day, position) {
+  const text = String(day ?? '').trim();
+  if (!text) return null;
+  const hour = Number(position);
+  if (!Number.isFinite(hour) || hour < 1 || hour > 24) return null;
+  const start = Date.parse(text + 'T00:00:00Z');
+  if (!Number.isFinite(start)) return null;
+  return new Date(start + (hour - 1) * 3_600_000).toISOString();
+}
+
+/**
  * Colour for a load band.
  * @param {string|null} band Band id.
  * @returns {string} Hex colour.

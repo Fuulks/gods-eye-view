@@ -18,8 +18,17 @@ const msg = (text) => text;
  */
 export function createIgnGeoplateformeSource({ layer = 'PLANIGNV2' } = {}) {
   return {
-    getDescriptor() {
-      return ignImageryDescriptor(layer);
+    /**
+     * The tile template for a raster layer.
+     *
+     * The layer argument wins over the one the source was built with, so the
+     * row's chips can switch the raster layer without rebuilding the source.
+     *
+     * @param {string} [requested] The raster layer id to describe.
+     * @returns {object} Imagery provider description.
+     */
+    getDescriptor(requested) {
+      return ignImageryDescriptor(requested || layer);
     },
   };
 }

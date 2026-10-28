@@ -3,14 +3,15 @@ import { msg, t } from '../../i18n/index.js';
 import { translateFeedError } from '../../ui/statusText.js';
 import {
   VIGICRUES_DESCRIPTION,
+  VIGICRUES_LEVEL_COLORS,
   VIGICRUES_OVERLAY_COLLISION_CAPACITY,
   VIGICRUES_OVERLAY_COHORT_LIMIT,
   VIGICRUES_OVERLAY_SOURCE_ID,
+  VIGICRUES_UNKNOWN_COLOR,
   createVigicruesOverlayEntry,
   mapVigicruesStationRecord,
   selectVigicruesOverlayCohort,
   zoneLines,
-  zoneColor,
   vigicruesLevelLabel,
 } from './model.js';
 export * from './model.js';
@@ -46,7 +47,9 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
     id: 'vigicrues-floods',
     name: 'Flood Warnings',
     icon: '🌊',
-    source: 'Vigicrues',
+    // The DATASET name only. The operator (Vigicrues) and the licence live
+    // in DATA_SOURCES.md and the in-app credits.
+    source: 'VIGICRUES',
     updateInterval: 15 * 60_000,
 
     init(viewer) {
@@ -230,35 +233,57 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
       rowControlsListener = null;
     },
 
-    /** Readout descriptor for the Layers panel. */
+    /**
+     * The row's legend: the vigilance bands, coloured exactly as the map
+     * draws them, each with the number of warning zones currently in it.
+     *
+     * This is the CONTAINMENT-BAND shape the perimeters and GNSS rows use:
+     * a legend is a list of {label, color, count}, where the colour is the
+     * datum. The scale is the repo's own (VIGICRUES_LEVEL_COLORS in the
+     * model), so the row and the map cannot drift apart.
+     *
+     * The bands are ALWAYS shown, not only the levels present right now: a
+     * vigilance level that happens to be empty is still part of the scale,
+     * and a legend that grows and shrinks with the data cannot be read as a
+     * scale at all.
+     */
     getRowControls() {
-      const levels = [
-        ...new Set(_zones.map((zone) => zone.level).filter(Boolean)),
-      ].sort((a, b) => a - b);
+      const bands = VIGICRUES_LEVEL_COLORS.map((band, index) => ({
+        label: t(band.label),
+        color: band.color,
+        count: _zones.filter((zone) => zone.level === band.id).length,
+        ...(index === 0
+          ? {
+              blurb: t(
+                'Colour shows the vigilance level the operator published for the warning zone. The zones are the river-course segments themselves, not the flooded area.',
+              ),
+            }
+          : {}),
+      }));
+      const unknown = _zones.filter(
+        (zone) =>
+          zone.level == null ||
+          !VIGICRUES_LEVEL_COLORS.some((band) => band.id === zone.level),
+      ).length;
+      if (unknown) {
+        bands.push({
+          label: t(vigicruesLevelLabel(null)),
+          color: VIGICRUES_UNKNOWN_COLOR,
+          count: unknown,
+        });
+      }
       return {
-        readout: true,
-        summary: {
-          label: t('Flood Warnings'),
-          coverage: t(VIGICRUES_DESCRIPTION),
-          validTime: _lastUpdate
-            ? new Date(_lastUpdate).toISOString()
-            : undefined,
-          status: _lastError
-            ? translateFeedError(_lastError)
-            : _count === 0
-              ? _lastUpdate === null
-                ? t('No sensors available')
-                : t('No current sensors')
-              : t('{count} sensors · {zones} warning zones', {
-                  count: String(_count),
-                  zones: String(_zones.length),
-                }),
-        },
-        legend: levels.map((level) => ({
-          color: zoneColor(level),
-          label: t(vigicruesLevelLabel(level)),
-        })),
-        legendCategorical: true,
+        chips: [],
+        legend: bands,
+        info: _lastError
+          ? translateFeedError(_lastError)
+          : t('{count} sensors · {zones} warning zones', {
+              count: String(_count),
+              zones: String(_zones.length),
+            }),
+        infoTitle: t(
+          'The vigilance level is the one the operator published for each warning zone.',
+        ),
       };
     },
 
