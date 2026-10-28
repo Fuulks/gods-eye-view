@@ -944,6 +944,23 @@ test('destroy releases every shared registration this layer took', async (t) => 
     0,
     'the primitive collection leaves the scene',
   );
+  // The station pin collection is a scene-level primitive like the fleet's
+  // billboard collections, so it has to leave the scene too, and its state
+  // slot has to be emptied: a layer that is destroyed and rebuilt must not
+  // inherit a collection the previous viewer owned.
+  assert.equal(
+    app.state()._stationPoints,
+    null,
+    'the station pin collection is released',
+  );
+  assert.equal(
+    app.overlaySources.has('transit-stations'),
+    false,
+    'the station label source is cleared',
+  );
+  assert.deepEqual(app.state()._stations, []);
+  assert.equal(app.state()._stationTotal, 0);
+  assert.equal(app.state()._stationError, null);
   assert.equal(app.holds().includes('transit'), false);
   assert.equal(app.state()._viewer, null);
   assert.equal(app.state()._dataManager, null);

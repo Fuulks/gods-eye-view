@@ -31,10 +31,27 @@ const STATION_PIN_OUTLINE_COLOR = Cesium.Color.BLACK.withAlpha(0.25);
 export * from './stationModel.js';
 
 /**
- * The pin sizes in pixels. A station with a public short code is a principal
- * station in the SNCF catalogue and is drawn slightly larger; every other
- * station uses the smaller size. No other signal is used: the catalogue
- * publishes no passenger count, frequency or capacity.
+ * The pin sizes in pixels, and the ONE rule that drives them.
+ *
+ * THE RULE: a station the catalogue gives a public short code
+ * (`libellecourt`) is a PRINCIPAL station and is drawn at 9 px; a station with
+ * no short code is a LOCAL station and is drawn at 6 px. Nothing else moves
+ * the size.
+ *
+ * WHY ONLY THAT SIGNAL: the SNCF passenger-station catalogue publishes a
+ * station's position, name, short code, UIC code and rail segment - and
+ * nothing else. It publishes NO passenger count, NO service frequency, NO
+ * train capacity and NO ridership. A pin sized by any of those would be
+ * drawing a number the data does not carry, so the short code is the only
+ * thing the size may follow. The UIC code is an identifier, not a measure,
+ * and the segment is a grouping, not a measure; neither may set a size.
+ *
+ * WHAT THE LIVE DATA LOOKS LIKE: as of 2026-10-28 all 2 792 stations in the
+ * catalogue carry a three-character short code, so in practice every pin is
+ * drawn at the principal size and the smaller local size is the fallback for a
+ * station the catalogue does not name. The rule stays because it is the only
+ * one the catalogue supports, and it starts doing visible work the moment a
+ * station arrives without a code.
  */
 export const STATION_PIN_SIZE_PRINCIPAL = 9;
 export const STATION_PIN_SIZE_LOCAL = 6;

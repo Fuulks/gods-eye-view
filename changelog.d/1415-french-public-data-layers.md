@@ -22,6 +22,18 @@
   the same segment colour muted. The Transit legend now counts those classes
   from the same pure classifier the map colours from, so the two cannot drift
   apart (Fuulks, #1415).
+- Read the SNCF station fields from the record body as well as from the
+  top level, so the proxy keeps every name, short code, UIC and
+  coordinate whichever shape the catalogue answers in. Reading only the
+  top level resolved them all to null against the record-body shape, and
+  the row fell back to the station id - a station with no name on the map
+  (Fuulks, #1415).
+- Keep a station that belongs to more than one rail segment in its own
+  colour. The catalogue publishes segment_drg as a semicolon-separated
+  list, so ten stations - Paris Gare du Nord, Paris Gare de Lyon, Paris
+  Austerlitz, Paris Montparnasse, Avignon TGV and CDG 2 TGV among them -
+  were falling through to the neutral grey. A station in several networks
+  now takes its first, primary segment (Fuulks, #1415).
 - Give the French public-data rows the same visual grammar as the
   pre-existing layers, using only the three patterns the Layers panel
   already has: VIGICRUES becomes a legend of vigilance bands with live
@@ -39,6 +51,18 @@
 - A healthy layer row reads as three short segments — state, source, age —
   and the detail segment is reserved for a feed that is degraded, partial,
   stale or erroring (Fuulks, #1415).
+- Read the SNCF station fields from the record body as well as from the
+  top level, so the proxy keeps every name, short code, UIC and
+  coordinate whichever shape the catalogue answers in. Reading only the
+  top level resolved them all to null against the record-body shape, and
+  the row fell back to the station id - a station with no name on the map
+  (Fuulks, #1415).
+- Keep a station that belongs to more than one rail segment in its own
+  colour. The catalogue publishes segment_drg as a semicolon-separated
+  list, so ten stations - Paris Gare du Nord, Paris Gare de Lyon, Paris
+  Austerlitz, Paris Montparnasse, Avignon TGV and CDG 2 TGV among them -
+  were falling through to the neutral grey. A station in several networks
+  now takes its first, primary segment (Fuulks, #1415).
 - Known issue: the VIGICRUES station catalogue route answers 502 because the
   operator redirects /services/observations.json to /services/observations.json/index.php
   and the provider fetches it with redirect:'manual', so the 302 is treated as
