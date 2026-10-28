@@ -51,21 +51,4 @@
 - A healthy layer row reads as three short segments — state, source, age —
   and the detail segment is reserved for a feed that is degraded, partial,
   stale or erroring (Fuulks, #1415).
-- Read the SNCF station fields from the record body as well as from the
-  top level, so the proxy keeps every name, short code, UIC and
-  coordinate whichever shape the catalogue answers in. Reading only the
-  top level resolved them all to null against the record-body shape, and
-  the row fell back to the station id - a station with no name on the map
-  (Fuulks, #1415).
-- Keep a station that belongs to more than one rail segment in its own
-  colour. The catalogue publishes segment_drg as a semicolon-separated
-  list, so ten stations - Paris Gare du Nord, Paris Gare de Lyon, Paris
-  Austerlitz, Paris Montparnasse, Avignon TGV and CDG 2 TGV among them -
-  were falling through to the neutral grey. A station in several networks
-  now takes its first, primary segment (Fuulks, #1415).
-- Known issue: the VIGICRUES station catalogue route answers 502 because the
-  operator redirects /services/observations.json to /services/observations.json/index.php
-  and the provider fetches it with redirect:'manual', so the 302 is treated as
-  a failure. The warning-zone route, which carries the row's legend counts,
-  is unaffected. The provider needs to follow the same-origin redirect the
-  shared proxy already allows (Fuulks, #1415).
+- Follow the operator's same-origin redirect on the VIGICRUES station catalogue instead of treating the 302 as a failure; the route answers 200 and the warning-zone route, which carries the row's legend counts, is unaffected (Fuulks, #1415).
