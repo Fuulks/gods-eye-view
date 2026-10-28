@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createVigicruesFloodsLayer } from '../vigicruesFloods/index.js';
-import { createCopernicusEmsLayer } from '../copernicusEms/index.js';
-import { createEntsoeGridLayer } from '../entsoeGrid/index.js';
-import { createIgnGeoplateformeLayer } from '../ignGeoplateforme/index.js';
-import { createBikeshareLayer } from '../bikeshare/index.js';
-import { transitCountLabel } from '../transit/queries.js';
-import { transitStationSegments } from '../transit/stationModel.js';
-import { LayerPanel } from '../../ui/layerPanel.js';
+import { createVigicruesFloodsLayer } from '../layers/vigicruesFloods/index.js';
+import { createCopernicusEmsLayer } from '../layers/copernicusEms/index.js';
+import { createEntsoeGridLayer } from '../layers/entsoeGrid/index.js';
+import { createIgnGeoplateformeLayer } from '../layers/ignGeoplateforme/index.js';
+import { createBikeshareLayer } from '../layers/bikeshare/index.js';
+import { transitCountLabel } from '../layers/transit/queries.js';
+import { transitStationSegments } from '../layers/transit/stationModel.js';
+import { LayerPanel } from './layerPanel.js';
 
 /**
  * The GUI coherence pass: the French public-data layers present themselves in
@@ -17,6 +17,10 @@ import { LayerPanel } from '../../ui/layerPanel.js';
  * These tests assert the SHAPE of each row's descriptor, not its wording:
  * a legend is a list of {label, color, count}, chips are {id, label, params}
  * and a readout is {readout: true, summary}.
+ *
+ * The suite lives HERE, beside the panel that renders the three patterns,
+ * because it is a CROSS-LAYER contract: it asserts that six different layer
+ * packages and the panel agree on one grammar. No layer owns it alone.
  */
 
 const viewerStub = () => ({
@@ -541,10 +545,10 @@ test('the panel resolves the key sentence a layer only names', () => {
 
 test('the source token names the dataset only, never the operator', async () => {
   const { createVigicruesFloodsLayer: vigicrues } = await import(
-    '../vigicruesFloods/index.js'
+    '../layers/vigicruesFloods/index.js'
   );
   const { createIgnGeoplateformeLayer: ign } = await import(
-    '../ignGeoplateforme/index.js'
+    '../layers/ignGeoplateforme/index.js'
   );
   const flood = vigicrues({
     source: { getSnapshot: async () => ({ stations: [], zones: [], total: 0 }) },
