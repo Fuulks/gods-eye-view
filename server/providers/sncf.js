@@ -36,6 +36,36 @@ export const STATION_TTL_MS = 6 * 3600_000;
 export const MAX_PAGE_BYTES = 2 * 1024 * 1024;
 
 /**
+ * Read one field of an ODS record, whichever shape the record has.
+ *
+ * The OpenDataSoft catalogue serves the same dataset in two shapes:
+ *
+ *  - the v2.1 catalogue API (`/api/explore/v2.1/catalog/.../records`) hands
+ *    back FLATTENED rows: {nom, libellecourt, segment_drg, ...};
+ *  - the v1 records API (`/api/records/1.0/search/`) hands back the record
+ *    BODY: {datasetid, recordid, fields: {nom, ...}, geometry, ...}.
+ *
+ * Reading only the top level therefore resolves EVERY name, short code, UIC
+ * and coordinate to null against the second shape, and the row silently falls
+ * back to its id - a station with no name on the map. Reading only `fields`
+ * does the same against the first. So the record body is read FIRST and the
+ * top level is the FALLBACK: one shape wins where both are present, and
+ * neither shape loses a field.
+ *
+ * @param {object|null|undefined} raw The ODS record.
+ * @param {string} key The field name.
+ * @returns {*} The field value, or undefined when the record carries none.
+ */
+export function fieldValue(raw, key) {
+  const body = raw?.fields;
+  if (body && typeof body === 'object') {
+    const value = body[key];
+    if (value !== undefined && value !== null) return value;
+  }
+  return raw?.[key];
+}
+
+/**
  * Normalize one ODS station record into a plain row.
  * @param {object} raw ODS record.
  * @param {number} index Record index (fallback id).
@@ -43,7 +73,7 @@ export const MAX_PAGE_BYTES = 2 * 1024 * 1024;
  *   uic: string|null, lon: number, lat: number, segment: string|null}|null}
  */
 export function normalizeSncfStation(raw, index = 0) {
-  const position = raw?.position_geographique;
+  const position = fieldValue(raw, 'position_geographique');
   const lon = Number(position?.lon);
   const lat = Number(position?.lat);
   if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
@@ -52,16 +82,16 @@ export function normalizeSncfStation(raw, index = 0) {
     const trimmed = String(value ?? '').trim();
     return trimmed || null;
   };
-  const uic = text(raw?.codes_uic);
-  const id = text(raw?.id) || uic || `sncf-station-${index + 1}`;
+  const uic = text(fieldValue(raw, 'codes_uic'));
+  const id = text(fieldValue(raw, 'id')) || uic || `sncf-station-${index + 1}`;
   return {
     id,
-    name: text(raw?.nom),
-    shortCode: text(raw?.libellecourt),
+    name: text(fieldValue(raw, 'nom')),
+    shortCode: text(fieldValue(raw, 'libellecourt')),
     uic,
     lon,
     lat,
-    segment: text(raw?.segment_drg),
+    segment: text(fieldValue(raw, 'segment_drg')),
   };
 }
 

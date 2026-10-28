@@ -119,14 +119,29 @@ export const TRANSIT_STATION_UNKNOWN_LOCAL_COLOR = muteStationColor(
  * The segment key of a station: the catalogue's segment letter, uppercased,
  * or 'other' when the catalogue names none (or one the palette does not).
  *
+ * The catalogue's `segment_drg` is a SEMICOLON-SEPARATED LIST, not a single
+ * letter: as of 2026-10-28 it publishes exactly nine values - A, B, C, and
+ * the six multi-membership forms 'A;A', 'A;B', 'A;B;A', 'B;A', 'B;B', 'B;C'.
+ * A station in more than one rail network (Paris Gare du Nord is 'A;B;A')
+ * belongs to several, so the FIRST listed segment is its primary one and
+ * the one the palette paints it in. Reading the whole string as one key
+ * sent every one of those ten stations - including Paris Gare du Nord,
+ * Paris Gare de Lyon, Paris Austerlitz, Paris Montparnasse and Avignon TGV
+ * - to the neutral 'other' colour, which is exactly the grey the map must
+ * not use for a station the catalogue names.
+ *
  * @param {string|null|undefined} segment
  * @returns {string}
  */
 export function transitStationSegmentKey(segment) {
-  const key = String(segment ?? '')
-    .trim()
-    .toUpperCase();
-  return key && TRANSIT_STATION_SEGMENT_COLORS[key] ? key : 'other';
+  const parts = String(segment ?? '')
+    .split(';')
+    .map((part) => part.trim().toUpperCase())
+    .filter(Boolean);
+  for (const part of parts) {
+    if (TRANSIT_STATION_SEGMENT_COLORS[part]) return part;
+  }
+  return 'other';
 }
 
 /**
@@ -273,9 +288,7 @@ export const TRANSIT_STATION_DESCRIPTION = msg(
  * @returns {string} Hex colour.
  */
 export function transitStationSegmentColor(segment) {
-  const key = String(segment ?? '')
-    .trim()
-    .toUpperCase();
+  const key = transitStationSegmentKey(segment);
   return TRANSIT_STATION_SEGMENT_COLORS[key] || TRANSIT_STATION_UNKNOWN_COLOR;
 }
 
