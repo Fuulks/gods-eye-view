@@ -144,14 +144,13 @@ export function createLifecycle({ state, services, parts }) {
       state._animatedMarkers.show = false;
       state._markers.show = false;
       // The station network is a SECOND display the Transit row owns: the
-      // live fleet's billboards and the French rail network's ground
-      // ellipses, side by side on one row.
-      if (!state._stationDataSource) {
-        state._stationDataSource = new Cesium.CustomDataSource(
-          'transit-stations',
-        );
-        state._stationDataSource.show = false;
-        viewer.dataSources.add(state._stationDataSource);
+      // live fleet's billboards and the French rail network's station pins,
+      // side by side on one row. The pins live in a PointPrimitiveCollection,
+      // the same pattern the Bike Share and satellite layers use.
+      if (!state._stationPoints) {
+        state._stationPoints = new Cesium.PointPrimitiveCollection();
+        state._stationPoints.show = false;
+        viewer.scene.primitives.add(state._stationPoints);
       }
       state._stations = [];
       state._stationTotal = 0;
@@ -201,8 +200,7 @@ export function createLifecycle({ state, services, parts }) {
       const showStations = state._display !== 'vehicles';
       state._markers.show = showVehicles;
       state._animatedMarkers.show = showVehicles;
-      if (state._stationDataSource)
-        state._stationDataSource.show = showStations;
+      if (state._stationPoints) state._stationPoints.show = showStations;
       state._overlayHost.setVisible(
         TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
         showStations,
@@ -258,7 +256,10 @@ export function createLifecycle({ state, services, parts }) {
       state._overlayHost.setVisible(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, false);
       state._overlayHost.clearSource(TRANSIT_STATIONS_OVERLAY_SOURCE_ID);
       parts.stations.abortStations();
-      if (state._stationDataSource) state._stationDataSource.show = false;
+      if (state._stationPoints) {
+        state._stationPoints.show = false;
+        state._stationPoints.removeAll();
+      }
       parts.selection.removeClickHandler();
       unregisterPickOwner('transit');
       if (state._cameraChangedAttached) {
@@ -334,9 +335,9 @@ export function createLifecycle({ state, services, parts }) {
       state._overlayHost.clearSource(TRANSIT_SELECTED_OVERLAY_SOURCE_ID);
       state._overlayHost.clearSource(TRANSIT_STATIONS_OVERLAY_SOURCE_ID);
       state._overlayHost.setVisible(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, false);
-      if (state._stationDataSource) {
-        viewer?.dataSources?.remove(state._stationDataSource, true);
-        state._stationDataSource = null;
+      if (state._stationPoints) {
+        viewer?.scene?.primitives?.remove(state._stationPoints);
+        state._stationPoints = null;
       }
       state._stations = [];
       state._stationTotal = 0;

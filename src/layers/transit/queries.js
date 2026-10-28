@@ -341,13 +341,13 @@ export function createQueries({ state, parts }) {
           },
         ],
         legend: segments.map((segment, index) => ({
-          label: t(segment.label),
+          label: t(segment.label, { segment: t(segment.segmentLabel) }),
           color: segment.color,
           count: segment.count,
           ...(index === 0
             ? {
                 blurb: t(
-                  'Colour shows the rail segment the SNCF catalogue groups this station in. The stations are a static catalogue of positions, not live train positions.',
+                  'Colour shows the station class: a principal station (the SNCF catalogue gives it a public short code) keeps its rail segment colour, and a local station (no short code) is drawn in the same segment colour muted. The stations are a static catalogue of positions, not live train positions.',
                 ),
               }
             : {}),

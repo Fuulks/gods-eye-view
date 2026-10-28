@@ -14,6 +14,14 @@
   through the same generic proxy every other city uses. The station
   catalogue is static, so it loads with the layer rather than following the
   fleet's camera-driven altitude gate (Fuulks, #1415).
+- Draw the SNCF passenger stations as POINT PINS in a Cesium
+  PointPrimitiveCollection instead of 2 792 translucent ground ellipses that
+  covered the map, and colour them by the station class the catalogue
+  supports: a principal station (the catalogue gives it a public short code)
+  keeps its rail-segment colour, a local station (no short code) is drawn in
+  the same segment colour muted. The Transit legend now counts those classes
+  from the same pure classifier the map colours from, so the two cannot drift
+  apart (Fuulks, #1415).
 - Give the French public-data rows the same visual grammar as the
   pre-existing layers, using only the three patterns the Layers panel
   already has: VIGICRUES becomes a legend of vigilance bands with live
