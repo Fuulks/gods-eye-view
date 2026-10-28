@@ -17,7 +17,16 @@ function harness(descriptor) {
     },
   };
   const layer = createIgnGeoplateformeLayer({
-    source: { getDescriptor: () => descriptor },
+    source: {
+      getDescriptor: (requested) =>
+        requested
+          ? {
+              ...descriptor,
+              layer: requested,
+              url: '/api/ign-geoplateforme/tiles/' + requested + '/{z}/{x}/{y}.png',
+            }
+          : descriptor,
+    },
   });
   layer.init(viewer);
   return { layer, viewer, added };
@@ -56,8 +65,38 @@ test('enabling adds the imagery layer through the local proxy template', () => {
 test('the layer offers no vector cadastre, because the upstream is unreliable', () => {
   const { layer, viewer } = harness(descriptor());
   layer.enable(viewer);
-  const { summary } = layer.getRowControls();
-  assert.match(summary.status, /vector cadastre unavailable/i);
+  // The row is a chips row: the raster layers are the chips, and the
+  // line under them says what the layer cannot offer.
+  const controls = layer.getRowControls();
+  assert.match(controls.info, /vector cadastre unavailable/i);
+  const chipIds = controls.chips.map((chip) => chip.id);
+  assert.deepEqual(chipIds, ['PLANIGNV2', 'PLANIGNV2.L93', 'ORTHOPHOTOS']);
+  assert.ok(
+    !chipIds.some((id) => id.includes('CADASTRAL')),
+    'the vector cadastre is never offered as a chip',
+  );
+  layer.destroy(viewer);
+});
+
+test('the raster chips switch the basemap and the row stays a layer row', () => {
+  const { layer, viewer, added } = harness(descriptor());
+  layer.enable(viewer);
+  const controls = layer.getRowControls();
+  assert.equal(controls.readout, undefined, 'the row keeps its own line');
+  const ortho = controls.chips.find((chip) => chip.id === 'ORTHOPHOTOS');
+  assert.deepEqual(ortho.params, { raster: 'ORTHOPHOTOS' });
+  assert.equal(layer.setParams({ raster: 'ORTHOPHOTOS' }), true);
+  assert.equal(
+    added.length,
+    1,
+    'the globe carries one basemap, so the old template is released',
+  );
+  assert.match(
+    added[0].url,
+    /ORTHOPHOTOS/,
+    'the new template names the chosen raster',
+  );
+  assert.equal(layer.setParams({ raster: 'NOT-A-LAYER' }), false);
   layer.destroy(viewer);
 });
 

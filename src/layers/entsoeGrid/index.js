@@ -9,6 +9,7 @@ import {
   ENTSOE_OVERLAY_COHORT_LIMIT,
   ENTSOE_OVERLAY_SOURCE_ID,
   entsoeBandColor,
+  entsoePointValidTime,
   mapEntsoeRecord,
 } from './model.js';
 export * from './model.js';
@@ -41,6 +42,9 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
   let _lastError = null;
   let _keyRequired = false;
   let _enabled = false;
+  // Which half of the day the card shows: the whole day-ahead forecast, or
+  // only the hours that have already passed.
+  let _mode = 'forecast';
   let rowControlsListener = null;
 
   const notify = () => rowControlsListener?.();
@@ -184,8 +188,53 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
       rowControlsListener = null;
     },
 
-    /** Readout descriptor for the Layers panel. */
+    /**
+     * Switch between the whole day-ahead forecast and the hours already
+     * past.
+     *
+     * @param {{mode?: string}} params Layer parameters.
+     * @returns {boolean} True when the parameters were accepted.
+     */
+    setParams(params = {}) {
+      if (!params || typeof params !== 'object') return false;
+      const mode = String(params.mode ?? '').trim();
+      if (!mode) return false;
+      if (!['forecast', 'observed'].includes(mode)) return false;
+      if (mode === _mode) return true;
+      _mode = mode;
+      notify();
+      return true;
+    },
+
+    /**
+     * The card for the European Grid row.
+     *
+     * The hourly load is a SERIES, so the card is a valid-time rail: every
+     * hour of the day is listed with the load the operator published for it.
+     * The chip switches between the whole day-ahead forecast and the hours
+     * that have already passed.
+     *
+     * WITHOUT a token the proxy answers 503 {error:'no_key'}. That is not
+     * an empty grid: it is a step the operator can take, so the card says
+     * which environment variable to set, through the same key-guidance
+     * sentence the rest of the app uses.
+     */
     getRowControls() {
+      const now = Date.now();
+      const rows = _series
+        .map((point) => ({
+          ...point,
+          validTime: entsoePointValidTime(_day, point.position),
+        }))
+        .filter((point) => Boolean(point.validTime))
+        .sort((a, b) => a.position - b.position);
+      const observed = rows.filter(
+        (point) => Date.parse(point.validTime) <= now,
+      );
+      const shown = _mode === 'observed' && observed.length ? observed : rows;
+      // KEY REQUIRED is the app's existing status word for a missing
+      // provider key; the guidance sentence beside it names the variable
+      // the operator has to set.
       const status = _keyRequired
         ? t('KEY REQUIRED')
         : _lastError
@@ -196,22 +245,80 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
                 count: String(_count),
                 unit: _unit || 'MW',
               });
+      const chips = [
+        {
+          id: 'forecast',
+          label: t('FORECAST'),
+          active: _mode !== 'observed',
+          title: t(
+            'The whole day-ahead series, every hour the operator published',
+          ),
+          params: { mode: 'forecast' },
+        },
+        {
+          id: 'observed',
+          label: t('OBSERVED'),
+          active: _mode === 'observed',
+          disabled: !observed.length,
+          title: observed.length
+            ? t('Only the hours of the day that have already passed')
+            : t('No hour of this day has passed yet'),
+          params: { mode: 'observed' },
+        },
+      ];
+      const detail = t('{count} hourly readings · {unit}', {
+        count: String(shown.length),
+        unit: _unit || 'MW',
+      });
       return {
         readout: true,
         summary: {
           label: t('European Grid'),
           coverage: t(ENTSOE_DESCRIPTION),
-          validTime: _lastUpdate
-            ? new Date(_lastUpdate).toISOString()
-            : undefined,
+          // The card names the variable the operator has to set. The
+          // SENTENCE is built by the panel, which owns the key registry
+          // wording; the layer only names the key it needs.
+          ...(_keyRequired ? { keyRequirementId: ENTSOE_KEY_ID } : {}),
+          detail,
+          validTime: rows.length
+            ? rows[0].validTime
+            : _lastUpdate
+              ? new Date(_lastUpdate).toISOString()
+              : undefined,
           status,
           units: _unit || 'MW',
+          settings: [
+            {
+              id: 'mode',
+              label: t('SERIES'),
+              chips,
+            },
+          ],
         },
         legend: ENTSOE_LOAD_BANDS.map((band) => ({
           color: band.color,
           label: t(band.label),
         })),
         legendCategorical: true,
+        // The hour rail only exists when there IS a series to rail over: a
+        // keyless layer has no hours, and an empty list would be a rail with
+        // nothing on it.
+        ...(shown.length
+          ? {
+              list: {
+                ariaLabel: t('European grid load by hour'),
+                items: shown.map((point) => ({
+                  id: String(point.position),
+                  lead: new Date(point.validTime).toISOString().slice(11, 16),
+                  text: t('{value} {unit}', {
+                    value: String(Math.round(point.value)),
+                    unit: _unit || 'MW',
+                  }),
+                  accent: entsoeBandColor(point.band),
+                })),
+              },
+            }
+          : {}),
       };
     },
 

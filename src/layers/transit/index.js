@@ -78,6 +78,8 @@ export {
   transitStationSegmentColor,
 } from './stations.js';
 
+export { transitCountLabel } from './queries.js';
+
 export {
   TRANSIT_MODE_COLORS,
   TRANSIT_POLL_MS,

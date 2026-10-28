@@ -54,6 +54,15 @@ export function createState({ services }) {
   state._generation = 0;
 
   state._cameraChangedAttached = false;
+
+  /**
+   * Which half of the merged row the map draws: 'both' (the default), the
+   * live GTFS-RT fleet, or the static SNCF station network. The row's chips
+   * set it; the layer draws what it says.
+   *
+   * @type {'both'|'vehicles'|'stations'}
+   */
+  state._display = 'both';
   state._cameraDebounceTimer = null;
   state._altitudeGateOpen = false;
   /** Camera sensitivity as we found it, so disable() can hand it back. */

@@ -12,7 +12,39 @@ import {
 } from '../../data/transitFeeds.js';
 import { transitModeTier } from '../../data/transitPresetStyle.js';
 import { t, tn } from '../../i18n/index.js';
-import { TRANSIT_STATION_DESCRIPTION } from './stationModel.js';
+import {
+  TRANSIT_STATION_DESCRIPTION,
+  transitStationSegments,
+} from './stationModel.js';
+
+/**
+ * The row's count, split into the two populations the row draws.
+ *
+ * The Transit row shows live GTFS-RT vehicles AND the static SNCF station
+ * network. One number for both would read as a count of trains, so the two
+ * are named separately: "12 vehicles · 2792 stations".
+ *
+ * A population that is absent is NOT shown as a zero: a layer that has the
+ * stations but no live vehicles yet reads "2792 stations", not "0 vehicles ·
+ * 2792 stations". When neither is loaded the label is empty, which is the
+ * panel's own way of saying there is nothing to count.
+ *
+ * @param {number} vehicles The live vehicle count.
+ * @param {number} stations The mapped station count.
+ * @returns {string} The count label, or '' when there is nothing to count.
+ */
+export function transitCountLabel(vehicles, stations) {
+  const hasVehicles = Number.isFinite(vehicles) && vehicles > 0;
+  const hasStations = Number.isFinite(stations) && stations > 0;
+  if (hasVehicles && hasStations)
+    return t('{vehicles} vehicles · {stations} stations', {
+      vehicles: String(vehicles),
+      stations: String(stations),
+    });
+  if (hasVehicles) return t('{count} vehicles', { count: String(vehicles) });
+  if (hasStations) return t('{count} stations', { count: String(stations) });
+  return '';
+}
 
 /**
  * The registry entry behind a vehicle. Live feeds answer first so a feed the
@@ -263,33 +295,70 @@ export function createQueries({ state, parts }) {
     },
 
     /**
-     * The Transit row's own readout. It states BOTH halves of the merged
-     * layer: the live GTFS-RT fleet and the French passenger-station
-     * network, and it keeps the station network's own disclaimer so the row
-     * is not mistaken for live train telemetry.
+     * The Transit row's own controls: chips that switch between the two
+     * halves of the merged row, and a legend for the station network's rail
+     * segments.
+     *
+     * The row draws the live GTFS-RT fleet AND the static SNCF passenger-
+     * station network. The chips let the operator look at one or the other;
+     * the legend names the rail segments the stations are coloured by, using
+     * the very colours the map draws them in.
+     *
+     * The station network's own disclaimer stays on the row, so it is never
+     * mistaken for live train telemetry: the SNCF catalogue publishes none.
      */
     getRowControls() {
-      const stationCount = (state._stations || []).length;
+      const stations = state._stations || [];
+      const stationCount = stations.length;
+      const vehicleCount = state._vehicles.size;
+      const segments = transitStationSegments(stations);
       return {
-        readout: true,
-        summary: {
-          label: t('Transit'),
-          coverage: t(TRANSIT_STATION_DESCRIPTION),
-          validTime: state._lastUpdate
-            ? new Date(state._lastUpdate).toISOString()
-            : undefined,
-          status: state._stationError
-            ? t('Station network unavailable')
-            : stationCount === 0
-              ? state._vehicles.size === 0
-                ? t('No stations available')
-                : t('No current stations')
-              : tn(
-                  stationCount,
-                  '{count} station mapped',
-                  '{count} stations mapped',
+        chips: [
+          {
+            id: 'vehicles',
+            label: t('VEHICLES'),
+            active: state._display !== 'stations',
+            title: t(
+              'Live GTFS-RT vehicle positions. These are the only live positions this row draws.',
+            ),
+            params: { display: 'vehicles' },
+          },
+          {
+            id: 'stations',
+            label: t('STATIONS'),
+            active: state._display !== 'vehicles',
+            title: t(
+              'The static SNCF passenger-station network. This is a catalogue of station positions, not live train positions.',
+            ),
+            params: { display: 'stations' },
+          },
+          {
+            id: 'both',
+            label: t('BOTH'),
+            active: state._display === 'both',
+            title: t('Show the live fleet and the station network together'),
+            params: { display: 'both' },
+          },
+        ],
+        legend: segments.map((segment, index) => ({
+          label: t(segment.label),
+          color: segment.color,
+          count: segment.count,
+          ...(index === 0
+            ? {
+                blurb: t(
+                  'Colour shows the rail segment the SNCF catalogue groups this station in. The stations are a static catalogue of positions, not live train positions.',
                 ),
-        },
+              }
+            : {}),
+        })),
+        info: state._stationError
+          ? t('Station network unavailable')
+          : t('{vehicles} live · {stations} mapped', {
+              vehicles: String(vehicleCount),
+              stations: String(stationCount),
+            }),
+        infoTitle: t(TRANSIT_STATION_DESCRIPTION),
       };
     },
 
@@ -309,6 +378,7 @@ export function createQueries({ state, parts }) {
       if (state._enabled && active.length === 0) {
         return {
           count: stationCount,
+          countLabel: transitCountLabel(0, stationCount),
           lastUpdate: state._lastUpdate,
           error: null,
           source: 'GTFS-RT · SNCF',
@@ -342,6 +412,7 @@ export function createQueries({ state, parts }) {
         .join(' · ');
       return {
         count: count + stationCount,
+        countLabel: transitCountLabel(count, stationCount),
         lastUpdate: state._lastUpdate,
         error: count === 0 && stationCount === 0 ? health.error : null,
         ...(count === 0 && Number.isFinite(health.retryInSec)
