@@ -5,14 +5,19 @@ import { readFileSync } from 'node:fs';
 import { rm, writeFile } from 'node:fs/promises';
 import { request } from 'node:http';
 import path from 'node:path';
-import { build, createServer, preview } from 'vite';
+import { build, createServer, loadEnv, preview } from 'vite';
 import {
   BROWSER_CSP,
   createBrowserViteConfig,
   escapeFsDenyPath,
 } from '../../build/vite.js';
 import standaloneConfig, * as compatibility from '../../vite.config.js';
-import { mergeDotenvIntoEnv } from '../../server/standalone/vite.config.js';
+import {
+  dotenvFilesForMode,
+  mergeDotenvIntoEnv,
+  readDotenvFiles,
+  standaloneViteConfig,
+} from '../../server/standalone/vite.config.js';
 import { upsertDotenvValues } from '../../src/keySetupCore.mjs';
 import * as providers from '../../server/providers/local.js';
 import { apiNotFoundPlugin } from '../../server/standalone/api-not-found.js';
@@ -119,6 +124,80 @@ test('an empty environment variable does not shadow the real value in the dotenv
   const unset = {};
   mergeDotenvIntoEnv({ CESIUM_ION_TOKEN: 'file-token-not-a-real-key' }, unset);
   assert.equal(unset.CESIUM_ION_TOKEN, 'file-token-not-a-real-key');
+});
+
+test('the dotenv files are read without the environment overlay loadEnv applies', async (t) => {
+  // loadEnv resolves a key from process.env FIRST, and an empty string there
+  // counts as resolved — so the file's real value never survives the call.
+  // That is exactly how the prod compose file's CESIUM_ION_TOKEN="" hid the
+  // mounted secret. The files are therefore read directly.
+  const root = await makeFixtureRoot('gev-dotenv-shadow-');
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(
+    path.join(root, '.env'),
+    'CESIUM_ION_TOKEN=file-token-not-a-real-key\nOTHER_KEY=other-value\n',
+  );
+
+  const before = process.env.CESIUM_ION_TOKEN;
+  process.env.CESIUM_ION_TOKEN = '';
+  try {
+    const loaded = loadEnv('production', root, '');
+    assert.equal(
+      loaded.CESIUM_ION_TOKEN,
+      '',
+      'loadEnv resolves the empty variable and hides the file value',
+    );
+
+    const files = readDotenvFiles('production', root);
+    assert.equal(files.CESIUM_ION_TOKEN, 'file-token-not-a-real-key');
+    assert.equal(files.OTHER_KEY, 'other-value');
+
+    const env = { CESIUM_ION_TOKEN: '' };
+    mergeDotenvIntoEnv(files, env);
+    assert.equal(env.CESIUM_ION_TOKEN, 'file-token-not-a-real-key');
+  } finally {
+    if (before === undefined) delete process.env.CESIUM_ION_TOKEN;
+    else process.env.CESIUM_ION_TOKEN = before;
+  }
+
+  // The file set matches Vite's own: the default file, the local one, the
+  // mode one and the mode-local one — later files win.
+  assert.deepEqual(
+    dotenvFilesForMode('production', '/tmp/example').map((file) =>
+      path.basename(file),
+    ),
+    ['.env', '.env.local', '.env.production', '.env.production.local'],
+  );
+});
+
+test('the standalone config bakes the file value, not an empty environment variable', async (t) => {
+  // The whole regression, end to end through the config factory: the app
+  // reads process.env for the browser-exposed defines (build/vite.js), so an
+  // empty variable there bakes an empty token into the bundle.
+  const root = await makeFixtureRoot('gev-config-shadow-');
+  t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(
+    path.join(root, '.env'),
+    'CESIUM_ION_TOKEN=file-token-not-a-real-key\n',
+  );
+
+  const before = process.env.CESIUM_ION_TOKEN;
+  process.env.CESIUM_ION_TOKEN = '';
+  try {
+    const config = standaloneViteConfig({
+      command: 'build',
+      mode: 'production',
+      root,
+    });
+    assert.equal(
+      config.define['import.meta.env.CESIUM_ION_TOKEN'],
+      '"file-token-not-a-real-key"',
+      'the file value reaches the browser bundle, not the empty variable',
+    );
+  } finally {
+    if (before === undefined) delete process.env.CESIUM_ION_TOKEN;
+    else process.env.CESIUM_ION_TOKEN = before;
+  }
 });
 
 test('a deliberately cleared key stays empty after the dotenv merge', () => {
