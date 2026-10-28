@@ -5,7 +5,10 @@ import { createCopernicusEmsLayer } from '../layers/copernicusEms/index.js';
 import { createEntsoeGridLayer } from '../layers/entsoeGrid/index.js';
 import { createIgnGeoplateformeLayer } from '../layers/ignGeoplateforme/index.js';
 import { createBikeshareLayer } from '../layers/bikeshare/index.js';
-import { transitCountLabel } from '../layers/transit/queries.js';
+import {
+  createQueries as createTransitQueries,
+  transitCountLabel,
+} from '../layers/transit/queries.js';
 import { transitStationSegments } from '../layers/transit/stationModel.js';
 import { LayerPanel } from './layerPanel.js';
 
@@ -560,3 +563,99 @@ test('the source token names the dataset only, never the operator', async () => 
   });
   assert.equal(raster.source, 'IGN');
 });
+
+/** The Transit row's own descriptor, built from a bare state. */
+function transitRowControls({ stations = [], vehicles = 0, display = 'both' } = {}) {
+  const state = {
+    _stations: stations,
+    _vehicles: new Map(
+      Array.from({ length: vehicles }, (_, index) => [
+        `v${index}`,
+        { id: `v${index}` },
+      ]),
+    ),
+    _display: display,
+    _stationError: null,
+    _lastUpdate: null,
+  };
+  const { methods } = createTransitQueries({ state, parts: {} });
+  return methods;
+}
+
+test('the Transit row offers chips that switch between the fleet and the stations', () => {
+  const controls = transitRowControls().getRowControls();
+  assert.equal(controls.readout, undefined, 'the row is not a card');
+  assertChipShape(controls.chips, 'Transit');
+  assert.deepEqual(
+    controls.chips.map((chip) => chip.id),
+    ['vehicles', 'stations', 'both'],
+    'the two populations the row draws, and both at once',
+  );
+  assert.deepEqual(controls.chips[0].params, { display: 'vehicles' });
+  assert.deepEqual(controls.chips[1].params, { display: 'stations' });
+  assert.deepEqual(controls.chips[2].params, { display: 'both' });
+});
+
+test('the Transit chips mark the mode the layer is drawing', () => {
+  const byId = (controls) =>
+    Object.fromEntries(controls.chips.map((chip) => [chip.id, chip.active]));
+  assert.deepEqual(
+    byId(transitRowControls({ display: 'both' }).getRowControls()),
+    { vehicles: true, stations: true, both: true },
+  );
+  assert.deepEqual(
+    byId(transitRowControls({ display: 'stations' }).getRowControls()),
+    { vehicles: false, stations: true, both: false },
+  );
+  assert.deepEqual(
+    byId(transitRowControls({ display: 'vehicles' }).getRowControls()),
+    { vehicles: true, stations: false, both: false },
+  );
+});
+
+test('the Transit row also carries the station legend beside its chips', () => {
+  const controls = transitRowControls({
+    stations: [{ segment: 'A' }, { segment: 'B' }],
+  }).getRowControls();
+  assertLegendShape(controls.legend, 'Transit');
+  const counts = Object.fromEntries(
+    controls.legend.map((entry) => [entry.label, entry.count]),
+  );
+  assert.equal(counts['Segment A'], 1);
+  assert.equal(counts['Segment B'], 1);
+});
+
+test('the panel renders the split Transit count in all three states', () => {
+  const panel = new LayerPanel({ getLayers: () => [] });
+  const states = [
+    [12, 2792, '12 vehicles · 2792 stations'],
+    [0, 2792, '2792 stations'],
+    [12, 0, '12 vehicles'],
+  ];
+  for (const [vehicles, stations, text] of states) {
+    assert.equal(
+      panel._layerCountText({
+        count: vehicles + stations,
+        countLabel: transitCountLabel(vehicles, stations),
+        lastUpdate: Date.now(),
+      }),
+      text,
+      'the split label is what the row shows',
+    );
+  }
+});
+
+test('a Transit row with nothing loaded keeps the empty dash', () => {
+  const panel = new LayerPanel({ getLayers: () => [] });
+  assert.equal(
+    panel._layerCountText({ count: 0 }),
+    '—',
+    'nothing loaded means the row shows the dash, as before',
+  );
+  assert.equal(
+    panel._layerCountText({ count: 0, countLabel: '' }),
+    '—',
+    'an empty split label does not become an empty cell',
+  );
+});
+
