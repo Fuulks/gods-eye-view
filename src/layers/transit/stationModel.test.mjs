@@ -133,6 +133,33 @@ test('a segment letter the palette does not name is treated as unnamed', () => {
   assert.equal(transitStationClass({ segment: 'Z' }).id, 'local:other');
 });
 
+test('a station in several rail segments takes its first segment', () => {
+  // The catalogue publishes segment_drg as a semicolon-separated list: a
+  // station that belongs to more than one rail network lists several. The
+  // first one is its primary segment, so it keeps that segment's colour
+  // instead of falling through to the neutral 'other' grey.
+  assert.equal(transitStationSegmentKey('A;B;A'), 'A');
+  assert.equal(transitStationSegmentKey('B;C'), 'B');
+  assert.equal(transitStationSegmentKey('A;A'), 'A');
+  assert.equal(transitStationSegmentKey('B;B'), 'B');
+  assert.equal(transitStationSegmentKey('A;B'), 'A');
+  assert.equal(transitStationSegmentKey('B;A'), 'B');
+  // A list whose first entry is unknown still resolves to a named one.
+  assert.equal(transitStationSegmentKey('Z;A'), 'A');
+  // A list with nothing the palette names stays unnamed.
+  assert.equal(transitStationSegmentKey('Z;Y'), 'other');
+  assert.equal(transitStationSegmentKey(';'), 'other');
+  // The class and the row colour agree with the same resolution.
+  const classification = transitStationClass({
+    segment: 'A;B;A',
+    shortCode: 'PNO',
+  });
+  assert.equal(classification.segment, 'A');
+  assert.equal(classification.id, 'principal:A');
+  assert.equal(classification.color, TRANSIT_STATION_SEGMENT_COLORS.A);
+  assert.equal(transitStationSegmentColor('A;B;A'), TRANSIT_STATION_SEGMENT_COLORS.A);
+});
+
 test('the legend counts the very classes the map colours from', () => {
   const stations = [
     { segment: 'A', shortCode: 'PV' },
