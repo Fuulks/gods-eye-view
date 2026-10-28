@@ -36,7 +36,10 @@
  *   GET /api/vigicrues/zones      -> flood warning zone geometry
  */
 
-import { createOpenDataService } from '../../src/sources/openDataProxy.js';
+import {
+  createOpenDataService,
+  openDataRedirectDecision,
+} from '../../src/sources/openDataProxy.js';
 import { readResponseJsonCapped } from '../../src/sources/httpBody.js';
 import { lambert93ToLonLat } from '../../src/sources/lambert93.js';
 
@@ -53,6 +56,8 @@ export const STATION_LIST_URL = SERVICE_BASE + '/observations.json';
 export const ZONES_URL = SERVICE_BASE + '/InfoVigiCru.geojson';
 /** The station catalogue changes on the order of days, not minutes. */
 export const STATION_TTL_MS = 6 * 3600_000;
+/** Max same-origin redirects followed for one upstream read. */
+export const VIGICRUES_MAX_REDIRECTS = 3;
 /** The upstream answers HTTP 429 after roughly 30 rapid requests. */
 export const STATION_SWEEP_DELAY_MS = 400;
 /** How many consecutive 429s end a sweep instead of waiting it out. */
@@ -199,6 +204,56 @@ function createStationCache() {
 }
 
 /**
+ * Fetch one upstream document, following a SAME-ORIGIN redirect by hand.
+ *
+ * WHY THIS IS NEEDED: the operator serves /services/observations.json as a
+ * 302 to /services/observations.json/index.php - the same 302 shape the
+ * station detail endpoint has. A plain `redirect: 'manual'` therefore sees a
+ * 302 and calls it a fatal upstream error, which is why the station route
+ * answered 502 while the zone route worked. The shared open-data proxy
+ * (src/sources/openDataProxy.js) already implements exactly this: follow the
+ * Location manually, but only while it stays on the registered upstream's own
+ * https origin.
+ *
+ * The cross-origin refusal is a real SSRF guard and is NOT relaxed here: an
+ * upstream that bounced the proxy at a third party would turn the allow-list
+ * into a suggestion.
+ *
+ * @param {string} url The registered upstream URL.
+ * @param {typeof fetch} fetchImpl Injected fetch.
+ * @param {AbortSignal} [signal] Abort signal.
+ * @param {string} accept Accept header for the upstream read.
+ * @returns {Promise<Response>} The final, non-redirect response.
+ */
+async function fetchVigicruesUpstream(url, fetchImpl, signal, accept) {
+  let current = url;
+  for (let hop = 0; hop <= VIGICRUES_MAX_REDIRECTS; hop += 1) {
+    const response = await fetchImpl(current, {
+      signal,
+      redirect: 'manual',
+      headers: { Accept: accept },
+    });
+    const isRedirect = response.status >= 300 && response.status < 400;
+    if (!isRedirect) return response;
+    const decision = openDataRedirectDecision(
+      url,
+      response.headers.get('location'),
+    );
+    try {
+      await response.body?.cancel();
+    } catch {
+      /* no-op */
+    }
+    if (!decision.ok)
+      throw new Error(`upstream redirect refused (${decision.reason})`);
+    if (hop === VIGICRUES_MAX_REDIRECTS)
+      throw new Error('upstream redirected too many times');
+    current = decision.url;
+  }
+  throw new Error('upstream redirected too many times');
+}
+
+/**
  * Load the station catalogue (ids and observation times).
  *
  * @param {typeof fetch} fetchImpl Injected fetch.
@@ -206,11 +261,12 @@ function createStationCache() {
  * @returns {Promise<{ids: string[], observedAt: number|null, total: number}>}
  */
 export async function loadVigicruesCatalog(fetchImpl, signal) {
-  const response = await fetchImpl(STATION_LIST_URL, {
+  const response = await fetchVigicruesUpstream(
+    STATION_LIST_URL,
+    fetchImpl,
     signal,
-    redirect: 'manual',
-    headers: { Accept: 'application/json' },
-  });
+    'application/json',
+  );
   if (!response.ok) {
     const error = new Error(`upstream HTTP ${response.status}`);
     error.upstreamStatus = response.status;
@@ -251,9 +307,11 @@ export async function hydrateVigicruesStations({
     cache.attempted.add(id);
     if (hydrated || consecutiveThrottle) await sleep(STATION_SWEEP_DELAY_MS);
     try {
-      const response = await fetchImpl(
+      const response = await fetchVigicruesUpstream(
         STATION_DETAIL_URL + '?CdStationHydro=' + encodeURIComponent(id),
-        { signal, redirect: 'manual', headers: { Accept: 'application/json' } },
+        fetchImpl,
+        signal,
+        'application/json',
       );
       if (response.status === 429) {
         // The operator throttles bursts. Back off rather than hammering it:
@@ -296,11 +354,12 @@ export async function hydrateVigicruesStations({
  * @returns {Promise<{fetchedAt: number, count: number, zones: object[], bbox: number[]|null}>}
  */
 export async function loadVigicruesZones(fetchImpl, signal) {
-  const response = await fetchImpl(ZONES_URL, {
+  const response = await fetchVigicruesUpstream(
+    ZONES_URL,
+    fetchImpl,
     signal,
-    redirect: 'manual',
-    headers: { Accept: 'application/geo+json, application/json' },
-  });
+    'application/geo+json, application/json',
+  );
   if (!response.ok) {
     const error = new Error(`upstream HTTP ${response.status}`);
     error.upstreamStatus = response.status;
