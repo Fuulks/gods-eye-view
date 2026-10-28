@@ -70,12 +70,19 @@ export {
   TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT,
   TRANSIT_STATIONS_OVERLAY_COLLISION_CAPACITY,
   TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
+  TRANSIT_STATION_RANK_LOCAL,
+  TRANSIT_STATION_RANK_PRINCIPAL,
+  TRANSIT_STATION_RANKS,
   TRANSIT_STATION_SEGMENT_COLORS,
+  TRANSIT_STATION_UNNAMED_SEGMENT_LABEL,
+  TRANSIT_STATION_UNKNOWN_LOCAL_COLOR,
   createTransitStationOverlayEntry,
   mapTransitStationRecord,
   normalizeTransitStationPayload,
   selectTransitStationOverlayCohort,
+  transitStationClass,
   transitStationSegmentColor,
+  transitStationSegmentKey,
 } from './stations.js';
 
 export { transitCountLabel } from './queries.js';

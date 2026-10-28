@@ -29,11 +29,12 @@ export function createState({ services }) {
   state._animatedMarkers = null;
 
   /**
-   * The French passenger-station network this layer also draws.
+   * The French passenger-station network this layer also draws, as point
+   * pins in a scene-level collection.
    *
-   * @type {Cesium.CustomDataSource|null}
+   * @type {Cesium.PointPrimitiveCollection|null}
    */
-  state._stationDataSource = null;
+  state._stationPoints = null;
   /** The station rows currently drawn. @type {Array<object>} */
   state._stations = [];
   /** How many stations the catalogue published. @type {number} */

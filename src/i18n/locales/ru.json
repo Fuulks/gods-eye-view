@@ -3176,7 +3176,6 @@
   "The static SNCF passenger-station network. This is a catalogue of station positions, not live train positions.": "Статическая сеть пассажирских станций SNCF. Это каталог позиций станций, а не живые позиции поездов.",
   "BOTH": "ОБА",
   "Show the live fleet and the station network together": "Показать живой парк и сеть станций одновременно",
-  "Colour shows the rail segment the SNCF catalogue groups this station in. The stations are a static catalogue of positions, not live train positions.": "Цвет показывает железнодорожный сегмент, в который каталог SNCF относит эту станцию. Станции — это статический каталог позиций, а не живые позиции поездов.",
   "{vehicles} live · {stations} mapped": "{vehicles} вживую · {stations} нанесено",
   "Segment A": "Сегмент A",
   "Segment B": "Сегмент B",
@@ -3184,8 +3183,11 @@
   "Segment D": "Сегмент D",
   "Segment E": "Сегмент E",
   "Segment F": "Сегмент F",
-  "Other segments": "Другие сегменты",
   "Colour shows the vigilance level the operator published for the warning zone. The zones are the river-course segments themselves, not the flooded area.": "Цвет показывает уровень бдительности, опубликованный оператором для зоны предупреждения. Зоны — это сами участки русла, а не площадь затопления.",
   "The vigilance level is the one the operator published for each warning zone.": "Уровень бдительности — тот, что оператор опубликовал для каждой зоны предупреждения.",
-  "{state} · {source} · {loadingLabel}": "{state} · {source} · {loadingLabel}"
+  "{state} · {source} · {loadingLabel}": "{state} · {source} · {loadingLabel}",
+  "Colour shows the station class: a principal station (the SNCF catalogue gives it a public short code) keeps its rail segment colour, and a local station (no short code) is drawn in the same segment colour muted. The stations are a static catalogue of positions, not live train positions.": "Цвет показывает класс станции: главная станция (каталог SNCF присваивает ей публичный код) сохраняет цвет своего железнодорожного сегмента, а местная станция (без кода) рисуется тем же цветом сегмента, приглушённым. Станции — это статический каталог позиций, а не живые позиции поездов.",
+  "Principal station ({segment})": "Главная станция ({segment})",
+  "Local station ({segment})": "Местная станция ({segment})",
+  "Unnamed segment": "Безымянный сегмент"
 }

@@ -1,36 +1,68 @@
 /**
  * @module layers/transit/stations
  * @description The French passenger-station network as the Transit layer draws
- * it: ground ellipses clamped to the terrain plus the overlay labels.
+ * it: point pins in a Cesium PointPrimitiveCollection plus the overlay
+ * labels.
  *
  * WHY IT LIVES IN TRANSIT: the owner asked for the station network to be part
  * of the Transit row rather than a second row of its own, so the Layers panel
  * keeps one Transit row that draws the live GTFS-RT fleet AND the French rail
  * network's stations.
  *
- * The markers are ground ellipses, clamped to the terrain, as in the
- * earthquake layer: a per-frame axis re-tessellates the clamped ground
- * primitive every frame, so the axes are static.
+ * The markers are POINT PINS, in the same PointPrimitiveCollection pattern the
+ * Bike Share and satellite layers use. The network is national (2 792
+ * stations), so ground ellipses big enough to see from orbit covered the map;
+ * pins keep the network legible at every scale.
  */
 import * as Cesium from 'cesium';
 import {
+  TRANSIT_STATION_RANK_PRINCIPAL,
   TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT,
   TRANSIT_STATIONS_OVERLAY_COLLISION_CAPACITY,
   TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
   createTransitStationOverlayEntry,
   selectTransitStationOverlayCohort,
+  transitStationClass,
 } from './stationModel.js';
+
+/** The pin outline, the same soft black the Bike Share points use. */
+const STATION_PIN_OUTLINE_COLOR = Cesium.Color.BLACK.withAlpha(0.25);
 
 export * from './stationModel.js';
 
-/** Station markers are a point anchor, not an extent. */
-export const STATION_MARKER_RADIUS_M = 4_000;
+/**
+ * The pin sizes in pixels. A station with a public short code is a principal
+ * station in the SNCF catalogue and is drawn slightly larger; every other
+ * station uses the smaller size. No other signal is used: the catalogue
+ * publishes no passenger count, frequency or capacity.
+ */
+export const STATION_PIN_SIZE_PRINCIPAL = 9;
+export const STATION_PIN_SIZE_LOCAL = 6;
+
+/**
+ * The distance behaviour of the pins, copied from the Bike Share layer so
+ * the whole app shrinks and fades its points the same way: the pins scale
+ * down and become translucent with distance, but never vanish entirely.
+ */
+export const STATION_PIN_SCALE_BY_DISTANCE = Object.freeze({
+  near: 200,
+  nearScale: 1.35,
+  far: 130_000,
+  farScale: 0.4,
+});
+export const STATION_PIN_TRANSLUCENCY_BY_DISTANCE = Object.freeze({
+  near: 200,
+  nearTranslucency: 1.0,
+  far: 180_000,
+  farTranslucency: 0.15,
+});
+export const STATION_PIN_DISABLE_DEPTH_TEST_DISTANCE = 2_500;
 
 /**
  * The station network the Transit layer owns.
  *
- * It is a scene-level part like the fleet: one Cesium CustomDataSource of
- * ground ellipses plus the overlay labels, both released on destroy.
+ * It is a scene-level part like the fleet: one Cesium PointPrimitiveCollection
+ * of pins plus the overlay labels, both released on destroy.
  *
  * @param {object} context
  * @returns {object}
@@ -44,46 +76,48 @@ export function createStationNetwork({ state, services, parts, source }) {
     state._stationRequest = null;
   }
 
-  /** Rebuild entities and overlay labels from the current stations. */
+  /** Rebuild the pins and the overlay labels from the current stations. */
   function renderStations() {
-    const dataSource = state._stationDataSource;
-    if (!dataSource) return;
-    dataSource.entities.removeAll();
+    const points = state._stationPoints;
+    if (!points) return;
+    points.removeAll();
     const overlayEntries = [];
     for (const station of state._stations) {
       const position = Cesium.Cartesian3.fromDegrees(station.lon, station.lat);
-      const color = Cesium.Color.fromCssColorString(station.color);
-      dataSource.entities.add(
-        new Cesium.Entity({
-          id: `sncf-station:${station.id}`,
-          position,
-          ellipse: {
-            // Static axes, as in the earthquake layer: a per-frame axis
-            // re-tessellates the clamped ground primitive every frame.
-            semiMajorAxis: STATION_MARKER_RADIUS_M,
-            semiMinorAxis: STATION_MARKER_RADIUS_M,
-            material: new Cesium.ColorMaterialProperty(color.withAlpha(0.35)),
-            outline: true,
-            outlineColor: color.withAlpha(0.9),
-            outlineWidth: 2,
-            heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-          },
-          properties: {
-            name: station.name,
-            shortCode: station.shortCode,
-            uic: station.uic,
-            segment: station.segment,
-            lat: station.lat,
-            lon: station.lon,
-          },
-        }),
-      );
+      // ONE classification: the pin colour and the legend counts both come
+      // from transitStationClass, so they cannot disagree.
+      const classification = transitStationClass(station);
+      const color = Cesium.Color.fromCssColorString(classification.color);
+      const principal = classification.rank === TRANSIT_STATION_RANK_PRINCIPAL;
+      points.add({
+        id: `sncf-station:${station.id}`,
+        position,
+        pixelSize: principal
+          ? STATION_PIN_SIZE_PRINCIPAL
+          : STATION_PIN_SIZE_LOCAL,
+        color: color.withAlpha(0.95),
+        outlineColor: STATION_PIN_OUTLINE_COLOR,
+        outlineWidth: 1,
+        scaleByDistance: new Cesium.NearFarScalar(
+          STATION_PIN_SCALE_BY_DISTANCE.near,
+          STATION_PIN_SCALE_BY_DISTANCE.nearScale,
+          STATION_PIN_SCALE_BY_DISTANCE.far,
+          STATION_PIN_SCALE_BY_DISTANCE.farScale,
+        ),
+        translucencyByDistance: new Cesium.NearFarScalar(
+          STATION_PIN_TRANSLUCENCY_BY_DISTANCE.near,
+          STATION_PIN_TRANSLUCENCY_BY_DISTANCE.nearTranslucency,
+          STATION_PIN_TRANSLUCENCY_BY_DISTANCE.far,
+          STATION_PIN_TRANSLUCENCY_BY_DISTANCE.farTranslucency,
+        ),
+        disableDepthTestDistance: STATION_PIN_DISABLE_DEPTH_TEST_DISTANCE,
+      });
       overlayEntries.push(
         createTransitStationOverlayEntry({
           id: station.id,
           position,
           title: station.name,
-          accent: station.color,
+          accent: classification.color,
         }),
       );
     }
@@ -169,7 +203,7 @@ export function createStationNetwork({ state, services, parts, source }) {
     const showStations = mode !== 'vehicles';
     if (state._markers) state._markers.show = showVehicles;
     if (state._animatedMarkers) state._animatedMarkers.show = showVehicles;
-    if (state._stationDataSource) state._stationDataSource.show = showStations;
+    if (state._stationPoints) state._stationPoints.show = showStations;
     state._overlayHost.setVisible(
       TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
       showStations,

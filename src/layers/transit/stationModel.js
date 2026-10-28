@@ -46,6 +46,128 @@ export const TRANSIT_STATION_SEGMENT_COLORS = Object.freeze({
 export const TRANSIT_STATION_UNKNOWN_COLOR = '#adb5bd';
 
 /**
+ * The visual class a station is drawn in.
+ *
+ * The SNCF catalogue publishes a station's position, name, short code, UIC
+ * code and rail segment. It publishes NO passenger count, no service
+ * frequency and no capacity, so the class is built only from what it does
+ * publish:
+ *
+ *  - the RANK: a station with a public short code is a principal station in
+ *    the operator's own catalogue; a station without one is a local station;
+ *  - the SEGMENT: the administrative grouping (`segment_drg`) the catalogue
+ *    puts the station in, which keeps the per-segment palette as the base of
+ *    every colour.
+ *
+ * The rank is the stronger signal, so it decides the class id and the label;
+ * the segment decides the hue. The two together are the classification:
+ *
+ *    principal + segment A   -> 'principal:A'
+ *    local    + segment A   -> 'local:A'
+ *    principal + no segment  -> 'principal:other'
+ *
+ * The class COLOUR is the segment's palette colour for a principal station
+ * and the same hue muted towards the neutral grey for a local station, so
+ * the map reads as a network of principal stations with their local stations
+ * around them. The legend paints the very same hex.
+ */
+export const TRANSIT_STATION_RANK_PRINCIPAL = 'principal';
+export const TRANSIT_STATION_RANK_LOCAL = 'local';
+
+/** The two ranks, in legend order. */
+export const TRANSIT_STATION_RANKS = Object.freeze([
+  Object.freeze({ id: TRANSIT_STATION_RANK_PRINCIPAL }),
+  Object.freeze({ id: TRANSIT_STATION_RANK_LOCAL }),
+]);
+
+/** The label templates the legend shows for each rank. */
+const TRANSIT_STATION_RANK_LABELS = Object.freeze({
+  [TRANSIT_STATION_RANK_PRINCIPAL]: msg('Principal station ({segment})'),
+  [TRANSIT_STATION_RANK_LOCAL]: msg('Local station ({segment})'),
+});
+
+/** The label used when the catalogue names no segment for the station. */
+export const TRANSIT_STATION_UNNAMED_SEGMENT_LABEL = msg('Unnamed segment');
+
+/**
+ * The muted colour a local station is drawn in: the segment's own hue,
+ * mixed towards the neutral grey so the principal stations stay readable.
+ *
+ * @param {string} hex The segment's palette colour.
+ * @returns {string} The muted hex.
+ */
+function muteStationColor(hex) {
+  const value = String(hex || '').trim();
+  const match = /^#([0-9a-f]{6})$/i.exec(value);
+  if (!match) return TRANSIT_STATION_UNKNOWN_COLOR;
+  const int = Number.parseInt(match[1], 16);
+  const r = (int >> 16) & 0xff;
+  const g = (int >> 8) & 0xff;
+  const b = int & 0xff;
+  const neutral = 0xad; // the unknown-segment grey, component by component
+  const mix = (channel) => Math.round(channel * 0.45 + neutral * 0.55);
+  const muted = (mix(r) << 16) | (mix(g) << 8) | mix(b);
+  return `#${muted.toString(16).padStart(6, '0')}`;
+}
+
+/** The muted counterpart of the unknown-segment grey. */
+export const TRANSIT_STATION_UNKNOWN_LOCAL_COLOR = muteStationColor(
+  TRANSIT_STATION_UNKNOWN_COLOR,
+);
+
+/**
+ * The segment key of a station: the catalogue's segment letter, uppercased,
+ * or 'other' when the catalogue names none (or one the palette does not).
+ *
+ * @param {string|null|undefined} segment
+ * @returns {string}
+ */
+export function transitStationSegmentKey(segment) {
+  const key = String(segment ?? '')
+    .trim()
+    .toUpperCase();
+  return key && TRANSIT_STATION_SEGMENT_COLORS[key] ? key : 'other';
+}
+
+/**
+ * The visual class of one station. This is the ONE classification: the map
+ * colours a pin from it and the row legend counts from it, so a station's
+ * colour and the class that counts it cannot disagree.
+ *
+ * @param {{shortCode?: string|null, segment?: string|null}} station
+ * @returns {{id: string, rank: string, segment: string, label: string,
+ *   segmentLabel: string, color: string}}
+ */
+export function transitStationClass(station) {
+  const segment = transitStationSegmentKey(station?.segment);
+  const rank = String(station?.shortCode ?? '').trim()
+    ? TRANSIT_STATION_RANK_PRINCIPAL
+    : TRANSIT_STATION_RANK_LOCAL;
+  const base =
+    segment === 'other'
+      ? TRANSIT_STATION_UNKNOWN_COLOR
+      : TRANSIT_STATION_SEGMENT_COLORS[segment];
+  const color =
+    rank === TRANSIT_STATION_RANK_PRINCIPAL
+      ? base
+      : segment === 'other'
+        ? TRANSIT_STATION_UNKNOWN_LOCAL_COLOR
+        : muteStationColor(base);
+  const segmentLabel =
+    segment === 'other'
+      ? TRANSIT_STATION_UNNAMED_SEGMENT_LABEL
+      : msg(`Segment ${segment}`);
+  return {
+    id: `${rank}:${segment}`,
+    rank,
+    segment,
+    label: TRANSIT_STATION_RANK_LABELS[rank],
+    segmentLabel,
+    color,
+  };
+}
+
+/**
  * The rail segments, in the order the legend shows them.
  *
  * The catalogue field is the SNCF network's own administrative grouping of
@@ -92,37 +214,47 @@ export const TRANSIT_STATION_SEGMENTS = Object.freeze([
 ]);
 
 /**
- * The legend entries for the station network: one per segment actually
- * present, plus an entry for the segments the palette does not name.
+ * The legend entries for the station network: one per visual class actually
+ * present, with the live count of the stations in it.
+ *
+ * The counts come from transitStationClass, the ONE classification the map
+ * colours its pins from, so a legend entry and the pins it describes cannot
+ * disagree. The entries are ordered principal first, then local, and within
+ * a rank by the catalogue's segment order.
  *
  * @param {Array<object>} stations The station rows currently drawn.
- * @returns {Array<{id: string, label: string, color: string, count: number}>}
+ * @returns {Array<{id: string, label: string, segmentLabel: string,
+ *   color: string, count: number}>}
  */
 export function transitStationSegments(stations = []) {
   const counts = new Map();
-  let unknown = 0;
-  for (const station of stations) {
-    const key = String(station?.segment ?? '')
-      .trim()
-      .toUpperCase();
-    if (!key || !TRANSIT_STATION_SEGMENT_COLORS[key]) {
-      unknown += 1;
-      continue;
-    }
-    counts.set(key, (counts.get(key) || 0) + 1);
+  const classes = new Map();
+  for (const station of Array.isArray(stations) ? stations : []) {
+    const classification = transitStationClass(station);
+    counts.set(classification.id, (counts.get(classification.id) || 0) + 1);
+    if (!classes.has(classification.id))
+      classes.set(classification.id, classification);
   }
-  const entries = TRANSIT_STATION_SEGMENTS.filter((segment) =>
-    counts.has(segment.id),
-  ).map((segment) => ({ ...segment, count: counts.get(segment.id) }));
-  if (unknown) {
-    entries.push({
-      id: 'other',
-      label: msg('Other segments'),
-      color: TRANSIT_STATION_UNKNOWN_COLOR,
-      count: unknown,
-    });
-  }
-  return entries;
+  const segmentOrder = new Map(
+    TRANSIT_STATION_SEGMENTS.map((segment, index) => [segment.id, index]),
+  );
+  const entries = [...classes.values()].sort((a, b) => {
+    const rankDelta =
+      TRANSIT_STATION_RANKS.findIndex((rank) => rank.id === a.rank) -
+      TRANSIT_STATION_RANKS.findIndex((rank) => rank.id === b.rank);
+    if (rankDelta) return rankDelta;
+    const aSegment = segmentOrder.get(a.segment) ?? segmentOrder.size;
+    const bSegment = segmentOrder.get(b.segment) ?? segmentOrder.size;
+    if (aSegment !== bSegment) return aSegment - bSegment;
+    return a.id.localeCompare(b.id);
+  });
+  return entries.map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+    segmentLabel: entry.segmentLabel,
+    color: entry.color,
+    count: counts.get(entry.id) || 0,
+  }));
 }
 
 /**

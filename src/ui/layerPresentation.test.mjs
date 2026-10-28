@@ -483,25 +483,30 @@ test('the Transit count shows only the population that is present', () => {
   );
 });
 
-test('the Transit station legend counts the stations in each rail segment', () => {
+test('the Transit station legend counts the stations in each visual class', () => {
+  // The legend now counts the CLASSES the map colours from: a principal
+  // station (the catalogue gives it a short code) and a local station (no
+  // short code), each within its rail segment. The old legend counted one
+  // entry per segment letter, which could not show the rank the pins are
+  // drawn in.
   const segments = transitStationSegments([
     { segment: 'A' },
     { segment: 'A' },
-    { segment: 'B' },
+    { segment: 'B', shortCode: 'BC' },
     { segment: 'C' },
     { segment: null },
   ]);
   const counts = Object.fromEntries(
-    segments.map((entry) => [entry.label, entry.count]),
+    segments.map((entry) => [entry.id, entry.count]),
   );
-  assert.equal(counts['Segment A'], 2);
-  assert.equal(counts['Segment B'], 1);
-  assert.equal(counts['Segment C'], 1);
-  assert.equal(counts['Other segments'], 1);
+  assert.equal(counts['local:A'], 2);
+  assert.equal(counts['principal:B'], 1);
+  assert.equal(counts['local:C'], 1);
+  assert.equal(counts['local:other'], 1);
   // The legend's colours are the map's colours.
   assert.equal(
-    segments.find((entry) => entry.label === 'Segment A').color,
-    '#4cc9f0',
+    segments.find((entry) => entry.id === 'principal:B').color,
+    '#ffd43b',
   );
 });
 
@@ -614,15 +619,22 @@ test('the Transit chips mark the mode the layer is drawing', () => {
 });
 
 test('the Transit row also carries the station legend beside its chips', () => {
+  // The legend entries are the visual CLASSES the pins are drawn in: a
+  // principal station (short code) and a local station (no short code) per
+  // rail segment. The old legend listed the segment letters alone, which
+  // could not show the rank the pins now encode.
   const controls = transitRowControls({
-    stations: [{ segment: 'A' }, { segment: 'B' }],
+    stations: [
+      { segment: 'A' },
+      { segment: 'B', shortCode: 'BC' },
+    ],
   }).getRowControls();
   assertLegendShape(controls.legend, 'Transit');
   const counts = Object.fromEntries(
     controls.legend.map((entry) => [entry.label, entry.count]),
   );
-  assert.equal(counts['Segment A'], 1);
-  assert.equal(counts['Segment B'], 1);
+  assert.equal(counts['Local station (Segment A)'], 1);
+  assert.equal(counts['Principal station (Segment B)'], 1);
 });
 
 test('the panel renders the split Transit count in all three states', () => {

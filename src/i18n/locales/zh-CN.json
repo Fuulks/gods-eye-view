@@ -2966,7 +2966,6 @@
   "The static SNCF passenger-station network. This is a catalogue of station positions, not live train positions.": "SNCF 静态客运站网络。这是车站位置目录，不是实时列车位置。",
   "BOTH": "两者",
   "Show the live fleet and the station network together": "同时显示实时车队和车站网络",
-  "Colour shows the rail segment the SNCF catalogue groups this station in. The stations are a static catalogue of positions, not live train positions.": "颜色表示 SNCF 目录将该车站归入的铁路区段。这些车站是静态位置目录，不是实时列车位置。",
   "{vehicles} live · {stations} mapped": "{vehicles} 辆实时 · {stations} 座已绘制",
   "Segment A": "区段 A",
   "Segment B": "区段 B",
@@ -2974,8 +2973,11 @@
   "Segment D": "区段 D",
   "Segment E": "区段 E",
   "Segment F": "区段 F",
-  "Other segments": "其他区段",
   "Colour shows the vigilance level the operator published for the warning zone. The zones are the river-course segments themselves, not the flooded area.": "颜色表示运营方为该预警区发布的警戒级别。这些区段就是河道本身，不是淹没范围。",
   "The vigilance level is the one the operator published for each warning zone.": "警戒级别即运营方为每个预警区发布的级别。",
-  "{state} · {source} · {loadingLabel}": "{state} · {source} · {loadingLabel}"
+  "{state} · {source} · {loadingLabel}": "{state} · {source} · {loadingLabel}",
+  "Colour shows the station class: a principal station (the SNCF catalogue gives it a public short code) keeps its rail segment colour, and a local station (no short code) is drawn in the same segment colour muted. The stations are a static catalogue of positions, not live train positions.": "颜色表示车站类别：主要车站（SNCF 目录为其提供公开代码）保留其铁路区段颜色，普通车站（无代码）则用同一区段颜色的淡化版本绘制。这些车站是静态位置目录，不是实时列车位置。",
+  "Principal station ({segment})": "主要车站（{segment}）",
+  "Local station ({segment})": "普通车站（{segment}）",
+  "Unnamed segment": "未命名区段"
 }

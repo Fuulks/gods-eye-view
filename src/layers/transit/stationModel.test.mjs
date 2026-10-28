@@ -1,10 +1,17 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  TRANSIT_STATION_RANK_LOCAL,
+  TRANSIT_STATION_RANK_PRINCIPAL,
+  TRANSIT_STATION_SEGMENT_COLORS,
+  TRANSIT_STATION_UNKNOWN_COLOR,
   TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
   normalizeTransitStationPayload,
   selectTransitStationOverlayCohort,
+  transitStationClass,
   transitStationSegmentColor,
+  transitStationSegmentKey,
+  transitStationSegments,
 } from './stationModel.js';
 
 test('a proxy payload is normalized into station rows coloured by rail segment', () => {
@@ -69,3 +76,96 @@ test('the station overlay lives under the Transit row own source id', () => {
   assert.equal(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, 'transit-stations');
 });
 
+
+test('a station with a short code is a principal station in its segment colour', () => {
+  const classification = transitStationClass({ segment: 'A', shortCode: 'PV' });
+  assert.equal(classification.rank, TRANSIT_STATION_RANK_PRINCIPAL);
+  assert.equal(classification.segment, 'A');
+  assert.equal(classification.id, 'principal:A');
+  // The principal station keeps its segment's palette colour.
+  assert.equal(classification.color, TRANSIT_STATION_SEGMENT_COLORS.A);
+});
+
+test('a station without a short code is a local station in the muted segment colour', () => {
+  const classification = transitStationClass({ segment: 'A', shortCode: null });
+  assert.equal(classification.rank, TRANSIT_STATION_RANK_LOCAL);
+  assert.equal(classification.id, 'local:A');
+  // The local station keeps the segment's hue, muted: same family, quieter.
+  assert.notEqual(classification.color, TRANSIT_STATION_SEGMENT_COLORS.A);
+  // The muted colour sits CLOSER to the neutral grey than the segment
+  // colour does, on every channel: same hue family, quieter.
+  const muted = [1, 3, 5].map((i) =>
+    Number.parseInt(classification.color.slice(i, i + 2), 16),
+  );
+  const base = [1, 3, 5].map((i) =>
+    Number.parseInt(TRANSIT_STATION_SEGMENT_COLORS.A.slice(i, i + 2), 16),
+  );
+  for (let channel = 0; channel < 3; channel += 1) {
+    assert.ok(
+      Math.abs(muted[channel] - 0xad) < Math.abs(base[channel] - 0xad),
+      `channel ${channel} is muted towards the neutral grey`,
+    );
+  }
+});
+
+test('an empty or blank short code counts as no short code', () => {
+  for (const shortCode of ['', '   ', null, undefined]) {
+    assert.equal(
+      transitStationClass({ segment: 'B', shortCode }).rank,
+      TRANSIT_STATION_RANK_LOCAL,
+    );
+  }
+});
+
+test('an unnamed segment falls into the other class and keeps the neutral colour', () => {
+  const classification = transitStationClass({ segment: null, shortCode: 'XX' });
+  assert.equal(classification.segment, 'other');
+  assert.equal(classification.id, 'principal:other');
+  assert.equal(classification.color, TRANSIT_STATION_UNKNOWN_COLOR);
+  const local = transitStationClass({ segment: null });
+  assert.equal(local.id, 'local:other');
+  assert.notEqual(local.color, TRANSIT_STATION_UNKNOWN_COLOR);
+});
+
+test('a segment letter the palette does not name is treated as unnamed', () => {
+  assert.equal(transitStationSegmentKey('Z'), 'other');
+  assert.equal(transitStationSegmentKey(' c '), 'C');
+  assert.equal(transitStationClass({ segment: 'Z' }).id, 'local:other');
+});
+
+test('the legend counts the very classes the map colours from', () => {
+  const stations = [
+    { segment: 'A', shortCode: 'PV' },
+    { segment: 'A', shortCode: 'PV' },
+    { segment: 'A' },
+    { segment: 'B', shortCode: 'BC' },
+    { segment: null },
+  ];
+  const entries = transitStationSegments(stations);
+  const counts = Object.fromEntries(entries.map((entry) => [entry.id, entry.count]));
+  assert.deepEqual(counts, {
+    'principal:A': 2,
+    'local:A': 1,
+    'principal:B': 1,
+    'local:other': 1,
+  });
+  // Every legend colour is the class colour the map draws, and the counts
+  // add up to the stations drawn.
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  for (const station of stations) {
+    const classification = transitStationClass(station);
+    assert.equal(byId.get(classification.id).color, classification.color);
+  }
+  const total = entries.reduce((sum, entry) => sum + entry.count, 0);
+  assert.equal(total, stations.length);
+});
+
+test('the legend labels name the rank and the segment plainly', () => {
+  const entries = transitStationSegments([
+    { segment: 'A', shortCode: 'PV' },
+    { segment: 'A' },
+  ]);
+  assert.equal(entries[0].label, 'Principal station ({segment})');
+  assert.equal(entries[0].segmentLabel, 'Segment A');
+  assert.equal(entries[1].label, 'Local station ({segment})');
+});

@@ -924,7 +924,9 @@ test('destroy releases every shared registration this layer took', async (t) => 
   await app.layer.update();
   assert.ok(app.sprites.has('transit'));
   assert.ok(app.pickOwners.has('transit'));
-  assert.equal(app.primitives.length, 2);
+  // Two billboard collections (the fleet and its motion pass) plus the
+  // station pin collection the Transit row owns.
+  assert.equal(app.primitives.length, 3);
 
   app.layer.destroy(app.viewer);
   assert.equal(

@@ -3106,7 +3106,6 @@
   "The static SNCF passenger-station network. This is a catalogue of station positions, not live train positions.": "La red estática de estaciones de pasajeros de SNCF. Es un catálogo de posiciones de estaciones, no posiciones de trenes en vivo.",
   "BOTH": "AMBOS",
   "Show the live fleet and the station network together": "Mostrar a la vez la flota en vivo y la red de estaciones",
-  "Colour shows the rail segment the SNCF catalogue groups this station in. The stations are a static catalogue of positions, not live train positions.": "El color muestra el segmento ferroviario en el que el catálogo de SNCF agrupa esta estación. Las estaciones son un catálogo estático de posiciones, no posiciones de trenes en vivo.",
   "{vehicles} live · {stations} mapped": "{vehicles} en vivo · {stations} mapeadas",
   "Segment A": "Segmento A",
   "Segment B": "Segmento B",
@@ -3114,8 +3113,11 @@
   "Segment D": "Segmento D",
   "Segment E": "Segmento E",
   "Segment F": "Segmento F",
-  "Other segments": "Otros segmentos",
   "Colour shows the vigilance level the operator published for the warning zone. The zones are the river-course segments themselves, not the flooded area.": "El color muestra el nivel de vigilancia que el operador publicó para la zona de aviso. Las zonas son los propios tramos del cauce, no el área inundada.",
   "The vigilance level is the one the operator published for each warning zone.": "El nivel de vigilancia es el que el operador publicó para cada zona de aviso.",
-  "{state} · {source} · {loadingLabel}": "{state} · {source} · {loadingLabel}"
+  "{state} · {source} · {loadingLabel}": "{state} · {source} · {loadingLabel}",
+  "Colour shows the station class: a principal station (the SNCF catalogue gives it a public short code) keeps its rail segment colour, and a local station (no short code) is drawn in the same segment colour muted. The stations are a static catalogue of positions, not live train positions.": "El color muestra la clase de estación: una estación principal (el catálogo de SNCF le asigna un código público) conserva el color de su segmento ferroviario, y una estación local (sin código) se dibuja con el mismo color de segmento atenuado. Las estaciones son un catálogo estático de posiciones, no posiciones de trenes en vivo.",
+  "Principal station ({segment})": "Estación principal ({segment})",
+  "Local station ({segment})": "Estación local ({segment})",
+  "Unnamed segment": "Segmento sin nombre"
 }
