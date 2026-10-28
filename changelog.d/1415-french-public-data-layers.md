@@ -31,3 +31,9 @@
 - A healthy layer row reads as three short segments — state, source, age —
   and the detail segment is reserved for a feed that is degraded, partial,
   stale or erroring (Fuulks, #1415).
+- Known issue: the VIGICRUES station catalogue route answers 502 because the
+  operator redirects /services/observations.json to /services/observations.json/index.php
+  and the provider fetches it with redirect:'manual', so the 302 is treated as
+  a failure. The warning-zone route, which carries the row's legend counts,
+  is unaffected. The provider needs to follow the same-origin redirect the
+  shared proxy already allows (Fuulks, #1415).
