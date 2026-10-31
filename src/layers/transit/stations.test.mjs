@@ -261,3 +261,45 @@ test('the selected station is not also named by an ambient label', () => {
   assert.equal(ids.includes('chindrieux'), false);
   assert.equal(ids.includes('vitry'), true);
 });
+
+test('a failed catalogue read is retried on a backoff, and aborting cancels the retry', async () => {
+  const app = harness();
+  let calls = 0;
+  const network = createStationNetwork({
+    state: app.state,
+    services: { render: { governorRequestRender() {} } },
+    parts: app.parts,
+    source: {
+      async getStations() {
+        calls += 1;
+        throw new Error('SNCF stations HTTP 503');
+      },
+    },
+  });
+  assert.equal(await network.loadStations(), false);
+  assert.equal(calls, 1);
+  assert.equal(app.state._stationError, 'SNCF stations HTTP 503');
+  assert.equal(app.state._stationFailures, 1);
+  assert.ok(app.state._stationRetryTimer, 'a retry is queued');
+  network.abortStations();
+  assert.equal(app.state._stationRetryTimer, null, 'abort cancels the retry');
+});
+
+test('a successful read resets the failure count and the error', async () => {
+  const app = harness();
+  app.state._stationFailures = 3;
+  app.state._stationError = 'old failure';
+  const network = createStationNetwork({
+    state: app.state,
+    services: { render: { governorRequestRender() {} } },
+    parts: app.parts,
+    source: {
+      async getStations() {
+        return { stations: [], total: 0 };
+      },
+    },
+  });
+  assert.equal(await network.loadStations(), true);
+  assert.equal(app.state._stationFailures, 0);
+  assert.equal(app.state._stationError, null);
+});

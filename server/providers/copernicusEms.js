@@ -20,6 +20,7 @@
  *   GET /api/copernicus-ems/activations/{code}
  */
 
+import { admitSameSiteKeyless } from './common/same-site.js';
 import { createOpenDataService } from '../../src/sources/openDataProxy.js';
 
 /** The activation catalogue endpoint. */
@@ -289,6 +290,7 @@ export function copernicusEmsProxy(options = {}) {
   const service = createCopernicusEmsService(options);
   function install(server) {
     server.middlewares.use('/api/copernicus-ems', async (req, res) => {
+      if (admitSameSiteKeyless(req, res)) return;
       const response = await service.handle({
         url: 'http://localhost/api/copernicus-ems' + (req.url || '/'),
         method: req.method,

@@ -17,7 +17,7 @@
 
 import { readResponseBytesCapped } from './common/http.js';
 import { makeRateLimiter } from './common/rate-limit.js';
-import { admitSameSiteRequest } from '../../src/localRequestGate.mjs';
+import { admitSameSiteKeyless } from './common/same-site.js';
 
 /** The Géoplateforme WMTS endpoint (KVP). */
 export const IGN_WMTS_ENDPOINT = 'https://data.geopf.fr/wmts';
@@ -174,17 +174,10 @@ export function createIgnGeoplateformeHandler({
     globalMax: maxPerMin * 4,
   });
   return async function handle(req, res) {
-    const verdict = admitSameSiteRequest({
-      hostHeader: req.headers?.host,
-      protocol: req.socket?.encrypted ? 'https:' : 'http:',
-      origin: req.headers?.origin,
-      secFetchSite: req.headers?.['sec-fetch-site'],
-      proxyHeaders: req.headers || {},
-    });
-    if (!verdict.ok) {
-      sendJson(res, verdict.status, { error: verdict.error });
-      return;
-    }
+    // Keyless public tiles: no credential or spend to protect, so a reverse
+    // proxy's forwarding headers must not break rendering (see
+    // admitSameSiteKeyless).
+    if (admitSameSiteKeyless(req, res)) return;
     if (req.method !== 'GET') {
       sendJson(res, 405, { error: 'Method not allowed' });
       return;

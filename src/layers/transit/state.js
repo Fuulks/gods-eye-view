@@ -48,6 +48,9 @@ export function createState({ services }) {
   state._stationPointById = new Map();
   /** The selected station's id, or null. */
   state._stationSelectedId = null;
+  /** Consecutive failed catalogue reads, and the queued retry. */
+  state._stationFailures = 0;
+  state._stationRetryTimer = null;
   /** The in-flight station request, so disable() can abort it. */
   state._stationRequest = null;
   state._visible = new Set();

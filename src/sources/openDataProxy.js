@@ -259,7 +259,10 @@ export function createOpenDataService({
     const route = decodeURIComponent(
       url.pathname.split('/').filter(Boolean).pop() || '',
     );
-    if (!routeMap.has(route) && typeof loader !== 'function') {
+    // Only registered routes are reachable. A loader owns HOW a registered
+    // route is fetched; it must never widen WHICH routes exist, or any path a
+    // browser sends would become its own cache, cooldown and limiter key.
+    if (!routeMap.has(route)) {
       return reply(404, { error: 'Unknown data route' });
     }
 

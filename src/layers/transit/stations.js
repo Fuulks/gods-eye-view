@@ -89,6 +89,10 @@ export const STATION_PIN_SELECTED_SIZE = 14;
 export const STATION_PIN_SELECTED_OUTLINE_WIDTH = 2;
 const STATION_PIN_SELECTED_OUTLINE_COLOR = Cesium.Color.WHITE;
 
+/** The retry ladder after a failed catalogue read: 30 s, 60 s, ... 5 min. */
+export const STATION_RETRY_BASE_MS = 30_000;
+export const STATION_RETRY_MAX_MS = 300_000;
+
 /**
  * The station network the Transit layer owns.
  *
@@ -101,10 +105,12 @@ const STATION_PIN_SELECTED_OUTLINE_COLOR = Cesium.Color.WHITE;
 export function createStationNetwork({ state, services, parts, source }) {
   const { governorRequestRender } = services.render;
 
-  /** Abort a station read that is still in flight. */
+  /** Abort a station read that is still in flight, and any queued retry. */
   function abortStations() {
     state._stationRequest?.abort();
     state._stationRequest = null;
+    clearTimeout(state._stationRetryTimer);
+    state._stationRetryTimer = null;
   }
 
   /** The pin's resting look, from its station class. */
@@ -307,6 +313,7 @@ export function createStationNetwork({ state, services, parts, source }) {
       state._stationTotal = snapshot.total;
       state._stationUpdatedAt = Date.now();
       state._stationError = null;
+      state._stationFailures = 0;
       renderStations();
       state._dataManager?.refreshLayerStats?.();
       return true;
@@ -319,6 +326,18 @@ export function createStationNetwork({ state, services, parts, source }) {
         state._stationError,
       );
       state._dataManager?.refreshLayerStats?.();
+      // A catalogue that failed (cooling down, rate limited, offline) is tried
+      // again on a backoff, so the network appears once the operator recovers
+      // instead of staying blank until the layer is toggled.
+      state._stationFailures = (state._stationFailures || 0) + 1;
+      const wait = Math.min(
+        STATION_RETRY_MAX_MS,
+        STATION_RETRY_BASE_MS * 2 ** (state._stationFailures - 1),
+      );
+      state._stationRetryTimer = setTimeout(() => {
+        state._stationRetryTimer = null;
+        void loadStations();
+      }, wait);
       return false;
     } finally {
       if (state._stationRequest === request) state._stationRequest = null;

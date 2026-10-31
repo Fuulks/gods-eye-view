@@ -19,6 +19,7 @@
  *   GET /api/sncf/stations  -> { fetchedAt, count, total, stations: [...] }
  */
 
+import { admitSameSiteKeyless } from './common/same-site.js';
 import { createOpenDataService } from '../../src/sources/openDataProxy.js';
 import { readResponseJsonCapped } from '../../src/sources/httpBody.js';
 
@@ -193,6 +194,7 @@ export function sncfProxy(options = {}) {
   const service = createSncfService(options);
   function install(server) {
     server.middlewares.use('/api/sncf', async (req, res) => {
+      if (admitSameSiteKeyless(req, res)) return;
       const response = await service.handle({
         url: `http://localhost/api/sncf${req.url || '/'}`,
         method: req.method,

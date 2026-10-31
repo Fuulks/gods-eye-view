@@ -36,6 +36,7 @@
  *   GET /api/vigicrues/zones      -> flood warning zone geometry
  */
 
+import { admitSameSiteKeyless } from './common/same-site.js';
 import {
   createOpenDataService,
   openDataRedirectDecision,
@@ -432,6 +433,7 @@ export function vigicruesProxy(options = {}) {
   const service = createVigicruesService(options);
   function install(server) {
     server.middlewares.use('/api/vigicrues', async (req, res) => {
+      if (admitSameSiteKeyless(req, res)) return;
       const response = await service.handle({
         url: 'http://localhost/api/vigicrues' + (req.url || '/'),
         method: req.method,

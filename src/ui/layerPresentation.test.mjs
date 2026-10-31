@@ -506,7 +506,7 @@ test('the Transit station legend counts the stations in each visual class', () =
   // The legend's colours are the map's colours.
   assert.equal(
     segments.find((entry) => entry.id === 'principal:B').color,
-    '#ffd43b',
+    '#ff6fb5',
   );
 });
 

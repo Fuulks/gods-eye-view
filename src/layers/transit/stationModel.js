@@ -3,8 +3,8 @@
  * @description The French passenger-station network, normalized. Pure — no
  * Cesium, no network.
  *
- * The SNCF Open Data catalogue `gares-de-voyageurs` dataset — 2 792 passenger
- * stations with their positions, coloured by the rail segment (`segment_drg`)
+ * The SNCF Open Data catalogue `gares-de-voyageurs` dataset — the passenger
+ * stations (2 792 as of 2026-10-28) with their positions, coloured by the rail segment (`segment_drg`)
  * they belong to. It is the STATION NETWORK, not live train telemetry: the
  * SNCF catalogue publishes no live vehicle-position dataset (the datasets that
  * sound like one carry zero records, and the GTFS zip is a schedule), so
@@ -34,9 +34,12 @@ export const TRANSIT_STATIONS_OVERLAY_COLLISION_CAPACITY = 32;
  * own colour so the map reads as a network rather than a scatter.
  */
 export const TRANSIT_STATION_SEGMENT_COLORS = Object.freeze({
-  A: '#4cc9f0',
-  B: '#ffd43b',
-  C: '#80ed99',
+  // Blue, pink and teal: none of them is a Transit mode colour (bus green,
+  // tram amber, subway red, rail lilac, ferry cyan), so a station pin is
+  // never mistaken for a vehicle of the same row.
+  A: '#4f8cff',
+  B: '#ff6fb5',
+  C: '#2ec4b6',
   D: '#ff6b35',
   E: '#a78bfa',
   F: '#f77f00',
@@ -278,7 +281,7 @@ export function transitStationSegments(stations = []) {
  * mistaken for live train telemetry: the SNCF catalogue publishes none.
  */
 export const TRANSIT_STATION_DESCRIPTION = msg(
-  'Live transit vehicles and the French passenger-station network (2 792 SNCF stations) — the stations are a network, not live train positions',
+  'Live transit vehicles and the French passenger-station network (SNCF) — the stations are a network, not live train positions',
 );
 
 /**

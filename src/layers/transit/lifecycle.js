@@ -271,6 +271,12 @@ export function createLifecycle({ state, services, parts }) {
       }
       state._stationById.clear();
       state._stationPointById.clear();
+      // A disabled row draws and counts nothing; the next enable reads the
+      // (cached) catalogue again.
+      state._stations = [];
+      state._stationTotal = 0;
+      state._stationError = null;
+      state._stationFailures = 0;
       parts.selection.removeClickHandler();
       unregisterPickOwner('transit');
       if (state._cameraChangedAttached) {

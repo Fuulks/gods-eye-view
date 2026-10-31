@@ -103,3 +103,32 @@ test('a preflight gate short-circuits the upstream', async () => {
   assert.equal(response.status, 503);
   assert.equal(calls, 0, 'upstream must not be contacted');
 });
+
+test('a loader service answers 404 for a route it never registered, and never runs the loader or keeps state for it', async () => {
+  let calls = 0;
+  const service = createOpenDataService({
+    id: 'loader-routes',
+    routes: new Map([['stations', 'unused']]),
+    loader: async () => {
+      calls += 1;
+      return { ok: true };
+    },
+  });
+  for (const path of ['nope', 'stations%2Fextra', 'x'.repeat(200)]) {
+    const response = await service.handle({
+      url: `http://localhost/api/x/${path}`,
+      method: 'GET',
+    });
+    assert.equal(response.status, 404, path);
+  }
+  assert.equal(calls, 0, 'the loader did not run for an unknown route');
+  // The registered route still works, and a failure of an unknown route did
+  // not put it into a cooldown.
+  const ok = await service.handle({
+    url: 'http://localhost/api/x/stations',
+    method: 'GET',
+  });
+  assert.equal(ok.status, 200);
+  assert.equal(calls, 1);
+  service.close();
+});

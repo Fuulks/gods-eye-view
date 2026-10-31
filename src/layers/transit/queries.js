@@ -388,7 +388,9 @@ export function createQueries({ state, parts }) {
           count: stationCount,
           countLabel: transitCountLabel(0, stationCount),
           lastUpdate: state._lastUpdate,
-          error: null,
+          // The live fleet is simply out of range here; a failed station
+          // catalogue is a real fault and says so.
+          error: stationCount === 0 ? state._stationError || null : null,
           source: 'GTFS-RT · SNCF',
           status: 'zoom-in',
           // English data (the analyst's empty note to the model); the voice
@@ -422,7 +424,10 @@ export function createQueries({ state, parts }) {
         count: count + stationCount,
         countLabel: transitCountLabel(count, stationCount),
         lastUpdate: state._lastUpdate,
-        error: count === 0 && stationCount === 0 ? health.error : null,
+        error:
+          count === 0 && stationCount === 0
+            ? health.error || state._stationError || null
+            : null,
         ...(count === 0 && Number.isFinite(health.retryInSec)
           ? { retryInSec: health.retryInSec }
           : {}),
