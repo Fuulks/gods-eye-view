@@ -21,10 +21,7 @@
  * scanned: it is full of words (`strike`, `fire`) that describe something
  * else. A placemark that says nothing recognisable is a plain `report`.
  */
-import {
-  MARKER_TINT_ALPHA_FLOOR,
-  isNeutralTint,
-} from '../../data/kmlTint.js';
+import { MARKER_TINT_ALPHA_FLOOR, isNeutralTint } from '../../data/kmlTint.js';
 
 /**
  * The event kinds, in the order the rules below are tried.
