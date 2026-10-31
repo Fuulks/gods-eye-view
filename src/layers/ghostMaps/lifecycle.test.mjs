@@ -3,6 +3,7 @@ import test from 'node:test';
 import * as Cesium from 'cesium';
 import {
   GHOST_MARKER_DISPLAY_SCALE,
+  GHOST_SYMBOL_MAX_DISTANCE_M,
   GHOST_MARKER_TINT_FLOOR,
   clearGhostMarkerCache,
   ghostMarkerTint,
@@ -172,6 +173,19 @@ test('a placemark is drawn as a shared symbol at the display scale, with no tint
   // The symbol carries its own colour: nothing may tint it.
   assert.equal(entity.billboard.color, undefined);
   assert.equal(entity.billboard.scale.getValue(), GHOST_MARKER_DISPLAY_SCALE);
+});
+
+test('a placemark is a symbol up close and a dot far away, never both', async (t) => {
+  const { layer, viewer, mounted } = fixture(t);
+  await layer.update(viewer);
+  const [dataSource] = [...mounted];
+  const [entity] = dataSource.entities.values;
+  const near = entity.billboard.distanceDisplayCondition.getValue();
+  const far = entity.point.distanceDisplayCondition.getValue();
+  assert.equal(near.near, 0);
+  assert.equal(near.far, GHOST_SYMBOL_MAX_DISTANCE_M);
+  assert.equal(far.near, GHOST_SYMBOL_MAX_DISTANCE_M);
+  assert.equal(far.far, Number.POSITIVE_INFINITY);
 });
 
 test('entity construction failure leaves nothing mounted and reports the error', async (t) => {
