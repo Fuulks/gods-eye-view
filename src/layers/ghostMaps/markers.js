@@ -21,6 +21,7 @@
  * scanned: it is full of words (`strike`, `fire`) that describe something
  * else. A placemark that says nothing recognisable is a plain `report`.
  */
+import { MARKER_TINT_ALPHA_FLOOR, isNeutralTint } from '../../data/kmlTint.js';
 
 /**
  * The event kinds, in the order the rules below are tried.
@@ -418,29 +419,12 @@ const spriteCache = new Map();
  */
 const spriteFailures = new Set();
 
-/**
- * Whether a KML colour says nothing about the marker's colour.
- *
- * An ArcGIS export writes `ff000000` (opaque black) and `00000000`
- * (transparent black) into the styles it emits. They are placeholders, not
- * choices: a marker tinted with either is BLACK, and a black marker on a dark
- * globe cannot be seen. The current products carry that black on their
- * polygon and label styles rather than on the icon style, but a product that
- * does put it on the icon must not be drawn black either. A near-white colour
- * is the other placeholder (the plain white sprite these symbols replaced was
- * tinted, so a white tint left the texture as it was drawn).
- *
- * @param {?number[]} rgba A KML colour as `[r, g, b, a]` in 0..1, or null.
- * @returns {boolean} True when the colour carries no information.
- */
-export function isNeutralTint(rgba) {
-  if (!Array.isArray(rgba) || rgba.length < 3) return true;
-  const [r, g, b] = rgba;
-  // The ArcGIS placeholder: opaque black.
-  if (r < 0.05 && g < 0.05 && b < 0.05) return true;
-  // The old plain-white sprite, kept for a KML that says white.
-  return r > 0.95 && g > 0.95 && b > 0.95;
-}
+// The KML colour rules live with the import feature, which obeys the same
+// ones (see ../../data/kmlTint.js): the black an ArcGIS export writes into a
+// style is a placeholder, and a tint too faint to see must not hide a marker.
+// They are re-exported here because this module's exports are the Ghost Maps
+// layer's public API.
+export { isNeutralTint };
 
 /**
  * The smallest alpha a tint may have and still show the symbol underneath.
@@ -448,7 +432,7 @@ export function isNeutralTint(rgba) {
  * multiplied into the texture that fades the symbol away, and an alpha of
  * zero erases it. The floor keeps every marker readable.
  */
-export const GHOST_MARKER_TINT_FLOOR = 0.35;
+export const GHOST_MARKER_TINT_FLOOR = MARKER_TINT_ALPHA_FLOOR;
 
 /**
  * The colour a marker is tinted with: the KML style's own colour when that
