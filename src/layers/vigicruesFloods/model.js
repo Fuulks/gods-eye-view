@@ -266,3 +266,66 @@ export function zoneLines(geometry) {
   }
   return [];
 }
+
+/** Entity id prefixes the layer draws; the pick owner and the card read them. */
+export const VIGICRUES_STATION_PICK_PREFIX = 'vigicrues-station:';
+export const VIGICRUES_ZONE_PICK_PREFIX = 'vigicrues-zone:';
+
+/**
+ * Which sensor or warning zone a picked entity id names.
+ * @param {unknown} pickId
+ * @returns {{kind: 'station'|'zone', id: string}|null}
+ */
+export function vigicruesPick(pickId) {
+  const text = typeof pickId === 'string' ? pickId : '';
+  if (text.startsWith(VIGICRUES_STATION_PICK_PREFIX)) {
+    const id = text.slice(VIGICRUES_STATION_PICK_PREFIX.length);
+    return id ? { kind: 'station', id } : null;
+  }
+  if (text.startsWith(VIGICRUES_ZONE_PICK_PREFIX)) {
+    // `<zone id>:<segment index>`: a zone is drawn as several polylines.
+    const rest = text.slice(VIGICRUES_ZONE_PICK_PREFIX.length);
+    const cut = rest.lastIndexOf(':');
+    const id = cut > 0 ? rest.slice(0, cut) : rest;
+    return id ? { kind: 'zone', id } : null;
+  }
+  return null;
+}
+
+/**
+ * The card for one sensor.
+ * @param {object} station A normalized station.
+ * @param {(key: string, params?: object) => string} t Translator.
+ * @returns {{title: string, details: string[]}}
+ */
+export function buildVigicruesStationCopy(station, t) {
+  const place = [station.river, station.commune].filter(Boolean).join(' · ');
+  return {
+    title: station.name,
+    details: [
+      t('Hydrometric sensor · Vigicrues'),
+      ...(place ? [place] : []),
+      station.hasBulletin
+        ? t('Forecast bulletin published')
+        : t('No forecast bulletin'),
+      `${station.lat.toFixed(3)}°, ${station.lon.toFixed(3)}°`,
+    ],
+  };
+}
+
+/**
+ * The card for one warning zone.
+ * @param {object} zone A normalized zone.
+ * @param {(key: string, params?: object) => string} t Translator.
+ * @returns {{title: string, details: string[]}}
+ */
+export function buildVigicruesZoneCopy(zone, t) {
+  return {
+    title: zone.label,
+    details: [
+      t('River warning zone · Vigicrues'),
+      t(vigicruesLevelLabel(zone.level)),
+      ...(zone.territory ? [zone.territory] : []),
+    ],
+  };
+}

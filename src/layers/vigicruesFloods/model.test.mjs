@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildVigicruesStationCopy,
+  buildVigicruesZoneCopy,
+  vigicruesPick,
   normalizeVigicruesStationPayload,
   normalizeVigicruesZonePayload,
   mapVigicruesStationRecord,
@@ -38,7 +41,10 @@ test('a structurally broken payload is refused so the last good one is kept', ()
 
 test('a station without coordinates is skipped, not fatal', () => {
   const result = normalizeVigicruesStationPayload({
-    stations: [{ id: 'a', name: 'Nowhere' }, { id: 'b', lon: 5, lat: 43 }],
+    stations: [
+      { id: 'a', name: 'Nowhere' },
+      { id: 'b', lon: 5, lat: 43 },
+    ],
   });
   assert.equal(result.stations.length, 1);
 });
@@ -120,4 +126,44 @@ test('an analyst record carries only JSON-safe values', () => {
   assert.equal(record.id, 'X302001001');
   assert.equal(record.hasBulletin, true);
   assert.deepEqual(JSON.parse(JSON.stringify(record)), record);
+});
+
+test('a picked entity id names a sensor or a zone, and a zone id may hold a colon', () => {
+  assert.deepEqual(vigicruesPick('vigicrues-station:K123'), {
+    kind: 'station',
+    id: 'K123',
+  });
+  assert.deepEqual(vigicruesPick('vigicrues-zone:Z:7:2'), {
+    kind: 'zone',
+    id: 'Z:7',
+  });
+  assert.equal(vigicruesPick('vigicrues-station:'), null);
+  assert.equal(vigicruesPick('other:1'), null);
+  assert.equal(vigicruesPick(undefined), null);
+});
+
+test('the sensor and zone cards carry the published facts', () => {
+  const t = (key) => key;
+  const station = buildVigicruesStationCopy(
+    {
+      name: 'Paris',
+      river: 'Seine',
+      commune: 'Paris',
+      hasBulletin: true,
+      lat: 48.8566,
+      lon: 2.3522,
+    },
+    t,
+  );
+  assert.equal(station.title, 'Paris');
+  assert.ok(station.details.includes('Seine · Paris'));
+  assert.ok(station.details.includes('Forecast bulletin published'));
+  assert.ok(station.details.includes('48.857°, 2.352°'));
+  const zone = buildVigicruesZoneCopy(
+    { label: 'Seine aval', territory: 'Île-de-France', level: 2 },
+    t,
+  );
+  assert.equal(zone.title, 'Seine aval');
+  assert.ok(zone.details.includes('Vigilance 2'));
+  assert.ok(zone.details.includes('Île-de-France'));
 });

@@ -8,7 +8,7 @@
  * as an empty snapshot, so the layer says "needs a key" instead of
  * pretending the grid is idle.
  */
-import { normalizeEntsoePayload } from './model.js';
+import { ENTSOE_ZONE_PINS, normalizeEntsoeSnapshot } from './model.js';
 
 // A portable export (package.json): no i18n here. Failures stay English data;
 // the Layers panel shows them translated.
@@ -37,34 +37,64 @@ export function createEntsoeSource({
   let cached = null;
   let cachedAt = 0;
   let inFlight = null;
+  async function readZone(code, signal) {
+    const response = await impl(`${route}?zone=${encodeURIComponent(code)}`, {
+      headers: { Accept: 'application/json' },
+      signal,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      // The FIRMS pattern: the proxy names the missing key, and the layer
+      // turns that into stats.keyRequired.
+      if (payload?.keyRequired === true || payload?.error === 'no_key') {
+        const error = new Error(msg('ENTSO-E requires an API token'));
+        error.keyRequired = true;
+        throw error;
+      }
+      if (payload?.keyRejected === true) {
+        const error = new Error(msg('ENTSO-E rejected the API token'));
+        error.keyRejected = true;
+        throw error;
+      }
+      throw new Error(`ENTSO-E proxy HTTP ${response.status}`);
+    }
+    return payload;
+  }
   return {
     async getSnapshot({ signal } = {}) {
       const now = Date.now();
       if (cached && now - cachedAt < ttlMs) return cached;
       if (inFlight) return inFlight;
       inFlight = (async () => {
-        const response = await impl(route, {
-          headers: { Accept: 'application/json' },
-          signal,
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          // The FIRMS pattern: the proxy names the missing key, and the
-          // layer turns that into stats.keyRequired.
-          if (payload?.keyRequired === true || payload?.error === 'no_key') {
-            const error = new Error(msg('ENTSO-E requires an API token'));
-            error.keyRequired = true;
-            throw error;
-          }
-          if (payload?.keyRejected === true) {
-            const error = new Error(msg('ENTSO-E rejected the API token'));
-            error.keyRejected = true;
-            throw error;
-          }
-          throw new Error(`ENTSO-E proxy HTTP ${response.status}`);
+        // One read per zone, in parallel: the proxy caches each, and one
+        // country failing must not blank the others.
+        const settled = await Promise.allSettled(
+          ENTSOE_ZONE_PINS.map(async ({ code }) => ({
+            code,
+            payload: await readZone(code, signal),
+          })),
+        );
+        // A missing or rejected token is the same for every zone, and it is
+        // a step the operator can take: surface it rather than a partial map.
+        for (const result of settled) {
+          if (
+            result.status === 'rejected' &&
+            (result.reason?.keyRequired || result.reason?.keyRejected)
+          )
+            throw result.reason;
         }
-        const normalized = normalizeEntsoePayload(payload);
-        if (!normalized) throw new Error(msg('Malformed ENTSO-E response'));
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        const ok = settled
+          .filter((result) => result.status === 'fulfilled')
+          .map((result) => result.value);
+        const normalized = normalizeEntsoeSnapshot(ok);
+        if (!normalized) {
+          const failure = settled.find(
+            (result) => result.status === 'rejected',
+          );
+          if (failure) throw failure.reason;
+          throw new Error(msg('Malformed ENTSO-E response'));
+        }
         cached = normalized;
         cachedAt = Date.now();
         return normalized;

@@ -9,11 +9,10 @@ const msg = (text) => text;
 /**
  * The Bike Share row's own description of what it shows. The row shows this,
  * so the merged coverage is stated rather than implied: the city GBFS
- * networks, Paris and Velib among them, each with live availability per
- * station rather than per bike.
+ * networks, each with live availability per station rather than per bike.
  */
 export const BIKESHARE_DESCRIPTION = msg(
-  'City docked bike share, Paris and Velib among them — live availability per station, not per bike',
+  'City docked bike share — live availability per station, not per bike',
 );
 
 export const BIKESHARE_SELECTED_OVERLAY_SOURCE_ID = 'bikeshare-selected';

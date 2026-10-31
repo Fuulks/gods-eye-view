@@ -248,9 +248,19 @@ test('the ENTSO-E row is a readout with an hourly valid-time rail and a mode chi
   const layer = createEntsoeGridLayer({
     source: {
       getSnapshot: async () => ({
-        series: [
-          { position: 1, value: 30000, band: 'moderate' },
-          { position: 2, value: 45000, band: 'high' },
+        zones: [
+          {
+            code: 'FR',
+            name: 'France',
+            lat: 46.6,
+            lon: 2.5,
+            series: [
+              { position: 1, value: 30000, band: 'moderate' },
+              { position: 2, value: 45000, band: 'high' },
+            ],
+            unit: 'MW',
+            day,
+          },
         ],
         unit: 'MW',
         day,

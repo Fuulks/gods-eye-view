@@ -1,8 +1,14 @@
 import * as Cesium from 'cesium';
 import { msg, t } from '../../i18n/index.js';
 import { translateFeedError } from '../../ui/statusText.js';
+import { createEntityCard } from '../entityCard.js';
 import {
+  ENTSOE_DEFAULT_FOCUS,
   ENTSOE_DESCRIPTION,
+  ENTSOE_ZONE_PICK_PREFIX,
+  buildEntsoeZoneCopy,
+  entsoeCurrentPoint,
+  entsoeZoneFromPick,
   ENTSOE_KEY_ID,
   ENTSOE_LOAD_BANDS,
   ENTSOE_OVERLAY_COLLISION_CAPACITY,
@@ -15,18 +21,23 @@ import {
 export * from './model.js';
 export { createEntsoeSource } from './source.js';
 
-/** How many points of the series the globe draws. */
-const MAX_DRAWN_POINTS = 96;
+/** Pin size in pixels: a static size, so no per-frame callback is needed. */
+const ZONE_PIN_SIZE_PX = 12;
 
 /**
- * Own one European grid display: the total-load series for the day as a
- * chain of coloured ground anchors.
+ * Own one European grid display: one pin per bidding zone, coloured by the
+ * zone's current load against its own day's peak. Clicking a pin opens a card
+ * with the current reading and the day's curve.
  *
  * The layer needs an ENTSO-E operator token. Without one the proxy answers
  * 503 {error:'no_key'} and the layer reports `stats.keyRequired`, so the row
  * reads as a step the operator can take rather than a broken feed.
  */
-export function createEntsoeGridLayer({ source, overlayHost } = {}) {
+export function createEntsoeGridLayer({
+  source,
+  overlayHost,
+  interaction,
+} = {}) {
   if (typeof source?.getSnapshot !== 'function')
     throw new TypeError('ENTSO-E grid requires a snapshot source');
   if (!overlayHost)
@@ -34,7 +45,8 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
   let _viewer = null;
   let _request = null;
   let _dataSource = null;
-  let _series = [];
+  let _zones = [];
+  let _focus = ENTSOE_DEFAULT_FOCUS;
   let _unit = null;
   let _day = null;
   let _count = 0;
@@ -48,6 +60,37 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
   let rowControlsListener = null;
 
   const notify = () => rowControlsListener?.();
+
+  // The zone whose hours the row's rail lists: France until a pin is chosen.
+  const focusZone = () =>
+    _zones.find((zone) => zone.code === _focus) ?? _zones[0] ?? null;
+  const focusSeries = () => focusZone()?.series ?? [];
+
+  const card = createEntityCard({
+    layerId: 'entsoe-grid',
+    overlayHost,
+    sourceId: `${ENTSOE_OVERLAY_SOURCE_ID}-selected`,
+    interaction,
+    owns: (id) => entsoeZoneFromPick(id) !== null,
+    resolve(id) {
+      const zone = _zones.find(
+        (entry) => entry.code === entsoeZoneFromPick(id),
+      );
+      if (!zone) return null;
+      return {
+        ...buildEntsoeZoneCopy(zone, t),
+        position: Cesium.Cartesian3.fromDegrees(zone.lon, zone.lat),
+      };
+    },
+    // Choosing a pin also points the row's hour rail at that country.
+    onSelect(id) {
+      const code = entsoeZoneFromPick(id);
+      if (code && code !== _focus) {
+        _focus = code;
+        notify();
+      }
+    },
+  });
 
   const layer = {
     id: 'entsoe-grid',
@@ -68,7 +111,7 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
       _dataSource = new Cesium.CustomDataSource('entsoe-grid');
       _dataSource.show = false;
       viewer.dataSources.add(_dataSource);
-      _series = [];
+      _zones = [];
       _unit = null;
       _day = null;
       _count = 0;
@@ -83,6 +126,7 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
       _enabled = true;
       if (_dataSource) _dataSource.show = true;
       overlayHost.setVisible(ENTSOE_OVERLAY_SOURCE_ID, true);
+      card.install(_viewer);
       notify();
     },
 
@@ -94,6 +138,7 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
       if (_dataSource) _dataSource.show = false;
       overlayHost.clearSource(ENTSOE_OVERLAY_SOURCE_ID);
       overlayHost.setVisible(ENTSOE_OVERLAY_SOURCE_ID, false);
+      card.remove();
       notify();
     },
 
@@ -106,11 +151,11 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
         const snapshot = await source.getSnapshot({ signal: request.signal });
         if (request.signal.aborted || _request !== request || !_enabled)
           return false;
-        _series = snapshot.series;
+        _zones = snapshot.zones;
         _unit = snapshot.unit;
         _day = snapshot.day;
         this._render();
-        _count = _series.length;
+        _count = _zones.length;
         _lastUpdate = Date.now();
         _lastError = null;
         _keyRequired = false;
@@ -130,37 +175,32 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
       }
     },
 
-    /** Rebuild entities from the current series. */
+    /** Rebuild the zone pins from the current snapshot. */
     _render() {
       if (!_dataSource) return;
       _dataSource.entities.removeAll();
-      // The series is a line of hourly values, not a set of places on the
-      // globe: it is drawn as a chain of anchors along a fixed baseline so
-      // the shape of the day is readable.
-      const step = Math.max(1, Math.ceil(_series.length / MAX_DRAWN_POINTS));
-      const shown = _series.filter((_, index) => index % step === 0);
-      for (const point of shown) {
+      card.clear();
+      const now = Date.now();
+      for (const zone of _zones) {
+        const current = entsoeCurrentPoint(zone, now);
         const color = Cesium.Color.fromCssColorString(
-          entsoeBandColor(point.band),
+          entsoeBandColor(current?.band),
         );
         _dataSource.entities.add(
           new Cesium.Entity({
-            id: `entsoe-point:${point.position}`,
-            position: Cesium.Cartesian3.fromDegrees(
-              -20 + point.position * 0.4,
-              50,
-            ),
+            id: `${ENTSOE_ZONE_PICK_PREFIX}${zone.code}`,
+            position: Cesium.Cartesian3.fromDegrees(zone.lon, zone.lat),
             point: {
-              // Static size: a per-frame callback would re-tessellate the
-              // point every frame.
-              pixelSize: 8,
+              pixelSize: ZONE_PIN_SIZE_PX,
               color: color.withAlpha(0.95),
+              outlineColor: Cesium.Color.WHITE.withAlpha(0.85),
+              outlineWidth: 1,
             },
             properties: {
-              value: point.value,
-              unit: _unit,
-              band: point.band,
-              position: point.position,
+              zone: zone.code,
+              value: current?.value ?? null,
+              unit: zone.unit,
+              band: current?.band ?? null,
             },
           }),
         );
@@ -173,12 +213,13 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
       _enabled = false;
       overlayHost.clearSource(ENTSOE_OVERLAY_SOURCE_ID);
       overlayHost.setVisible(ENTSOE_OVERLAY_SOURCE_ID, false);
+      card.remove();
       if (_dataSource) {
         viewer?.dataSources?.remove(_dataSource, true);
         _dataSource = null;
       }
       _viewer = null;
-      _series = [];
+      _zones = [];
       _unit = null;
       _day = null;
       _count = 0;
@@ -221,7 +262,8 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
      */
     getRowControls() {
       const now = Date.now();
-      const rows = _series
+      const zone = focusZone();
+      const rows = focusSeries()
         .map((point) => ({
           ...point,
           validTime: entsoePointValidTime(_day, point.position),
@@ -241,7 +283,7 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
           ? translateFeedError(_lastError)
           : _count === 0
             ? t('No grid data')
-            : t('{count} readings · {unit}', {
+            : t('{count} countries · {unit}', {
                 count: String(_count),
                 unit: _unit || 'MW',
               });
@@ -266,7 +308,8 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
           params: { mode: 'observed' },
         },
       ];
-      const detail = t('{count} hourly readings · {unit}', {
+      const detail = t('{zone} · {count} hourly readings · {unit}', {
+        zone: zone ? t(zone.name) : '—',
         count: String(shown.length),
         unit: _unit || 'MW',
       });
@@ -306,7 +349,9 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
         ...(shown.length
           ? {
               list: {
-                ariaLabel: t('European grid load by hour'),
+                ariaLabel: t('{zone} grid load by hour', {
+                  zone: zone ? t(zone.name) : '',
+                }),
                 items: shown.map((point) => ({
                   id: String(point.position),
                   lead: new Date(point.validTime).toISOString().slice(11, 16),
@@ -332,20 +377,23 @@ export function createEntsoeGridLayer({ source, overlayHost } = {}) {
      * @returns {Array<object>}
      */
     getAnalystRecords(maxCount = 500) {
-      if (!_enabled || !_series.length) return [];
+      if (!_enabled || !_zones.length) return [];
       const limit = Number.isFinite(maxCount)
         ? Math.max(1, Math.floor(maxCount))
         : 500;
-      return _series.slice(0, limit).map((point, index) =>
-        mapEntsoeRecord(
-          {
-            ...point,
-            unit: _unit,
-            sampledAt: _day,
-          },
-          index,
-        ),
-      );
+      return _zones
+        .flatMap((zone) =>
+          zone.series.map((point) =>
+            mapEntsoeRecord({
+              ...point,
+              id: `GRID-${zone.code}-${String(point.position).padStart(2, '0')}`,
+              zone: zone.code,
+              unit: zone.unit,
+              sampledAt: zone.day,
+            }),
+          ),
+        )
+        .slice(0, limit);
     },
 
     getStats() {

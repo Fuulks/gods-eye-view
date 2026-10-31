@@ -285,3 +285,57 @@ export function selectCopernicusOverlayCohort(
     .sort((a, b) => String(a.id).localeCompare(String(b.id)))
     .slice(0, cap);
 }
+
+/** Entity id prefix the layer draws; the pick owner and the card read it. */
+export const COPERNICUS_PICK_PREFIX = 'copernicus-activation:';
+
+/** The activation id a picked entity id names, or null. */
+export function copernicusActivationIdFromPick(pickId) {
+  const text = typeof pickId === 'string' ? pickId : '';
+  if (!text.startsWith(COPERNICUS_PICK_PREFIX)) return null;
+  return text.slice(COPERNICUS_PICK_PREFIX.length) || null;
+}
+
+/**
+ * The card for one activation.
+ * @param {object} activation A normalized activation.
+ * @param {(key: string, params?: object) => string} t Translator.
+ * @param {number} [now] Reference time for the status.
+ * @returns {{title: string, details: string[]}}
+ */
+export function buildCopernicusActivationCopy(activation, t, now = Date.now()) {
+  const status = copernicusActivationStatus(activation, now);
+  const day = (value) => {
+    const ms = Date.parse(value || '');
+    return Number.isFinite(ms) ? new Date(ms).toISOString().slice(0, 10) : null;
+  };
+  const activated = day(activation.activationTime);
+  const updated = day(activation.lastUpdate);
+  const countries = activation.countries.length
+    ? activation.countries.join(', ')
+    : activation.country;
+  return {
+    title: activation.code
+      ? `${activation.code} · ${activation.name}`
+      : activation.name,
+    details: [
+      t('Copernicus EMS activation'),
+      `${t(activation.categoryLabel)} · ${t(copernicusActivationStatusLabel(status))}`,
+      ...(activation.phaseLabel ? [t(activation.phaseLabel)] : []),
+      ...(countries ? [countries] : []),
+      ...(activated ? [t('Activated {date}', { date: activated })] : []),
+      ...(updated && updated !== activated
+        ? [t('Updated {date}', { date: updated })]
+        : []),
+      ...(activation.aoiCount != null || activation.productCount != null
+        ? [
+            t('{aoi} areas · {products} products', {
+              aoi: String(activation.aoiCount ?? 0),
+              products: String(activation.productCount ?? 0),
+            }),
+          ]
+        : []),
+      `${activation.lat.toFixed(3)}°, ${activation.lon.toFixed(3)}°`,
+    ],
+  };
+}

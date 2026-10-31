@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  buildCopernicusActivationCopy,
+  copernicusActivationIdFromPick,
   copernicusCategoryColor,
   copernicusCategoryLabel,
   copernicusPhaseLabel,
@@ -53,10 +55,7 @@ test('a structurally broken payload is refused so the last good one is kept', ()
 
 test('an activation without a usable position is skipped, not fatal', () => {
   const result = normalizeCopernicusActivations({
-    activations: [
-      { id: 'a', lon: 1, lat: 2 },
-      { id: 'b' },
-    ],
+    activations: [{ id: 'a', lon: 1, lat: 2 }, { id: 'b' }],
   });
   assert.equal(result.activations.length, 1);
   assert.equal(result.activations[0].id, 'a');
@@ -85,4 +84,39 @@ test('an analyst record carries only JSON-safe values', () => {
   assert.equal(record.id, 'EMSR935');
   assert.equal(record.closed, false);
   assert.deepEqual(JSON.parse(JSON.stringify(record)), record);
+});
+
+test('an activation card names the code, hazard, status and place', () => {
+  const t = (key, params) =>
+    params ? key.replace(/\{(\w+)\}/g, (_, name) => params[name]) : key;
+  const [activation] = normalizeCopernicusActivations({
+    activations: [
+      {
+        id: '1',
+        code: 'EMSR900',
+        name: 'Flood in Gard',
+        category: 'flood',
+        phase: 'response',
+        country: 'France',
+        lon: 4.1,
+        lat: 43.9,
+        activationTime: '2026-10-29T08:00:00Z',
+        lastUpdate: '2026-10-30T09:00:00Z',
+        aoiCount: 3,
+        productCount: 5,
+      },
+    ],
+  }).activations;
+  const copy = buildCopernicusActivationCopy(
+    activation,
+    t,
+    Date.parse('2026-10-30T12:00:00Z'),
+  );
+  assert.equal(copy.title, 'EMSR900 · Flood in Gard');
+  assert.ok(copy.details.includes('Flood · New'));
+  assert.ok(copy.details.includes('Response'));
+  assert.ok(copy.details.includes('Activated 2026-10-29'));
+  assert.ok(copy.details.includes('3 areas · 5 products'));
+  assert.equal(copernicusActivationIdFromPick('copernicus-activation:1'), '1');
+  assert.equal(copernicusActivationIdFromPick('x:1'), null);
 });

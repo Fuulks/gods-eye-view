@@ -1,6 +1,7 @@
 import * as Cesium from 'cesium';
 import { msg, t } from '../../i18n/index.js';
 import { translateFeedError } from '../../ui/statusText.js';
+import { createEntityCard } from '../entityCard.js';
 import {
   VIGICRUES_DESCRIPTION,
   VIGICRUES_LEVEL_COLORS,
@@ -8,6 +9,11 @@ import {
   VIGICRUES_OVERLAY_COHORT_LIMIT,
   VIGICRUES_OVERLAY_SOURCE_ID,
   VIGICRUES_UNKNOWN_COLOR,
+  VIGICRUES_STATION_PICK_PREFIX,
+  VIGICRUES_ZONE_PICK_PREFIX,
+  buildVigicruesStationCopy,
+  buildVigicruesZoneCopy,
+  vigicruesPick,
   createVigicruesOverlayEntry,
   mapVigicruesStationRecord,
   selectVigicruesOverlayCohort,
@@ -24,7 +30,11 @@ const SENSOR_MARKER_RADIUS_M = 4_000;
  * Own one flood-warning display: the warning zones as ground geometry and
  * the river sensors as anchors.
  */
-export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
+export function createVigicruesFloodsLayer({
+  source,
+  overlayHost,
+  interaction,
+} = {}) {
   if (typeof source?.getSnapshot !== 'function')
     throw new TypeError('Vigicrues floods require a snapshot source');
   if (!overlayHost)
@@ -40,6 +50,31 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
   let _lastError = null;
   let _enabled = false;
   let rowControlsListener = null;
+
+  const cardSourceId = `${VIGICRUES_OVERLAY_SOURCE_ID}-selected`;
+  const card = createEntityCard({
+    layerId: 'vigicrues-floods',
+    overlayHost,
+    sourceId: cardSourceId,
+    interaction,
+    owns: (id) => vigicruesPick(id) !== null,
+    resolve(id, click) {
+      const pick = vigicruesPick(id);
+      if (!pick) return null;
+      if (pick.kind === 'station') {
+        const station = _stations.find((entry) => entry.id === pick.id);
+        if (!station) return null;
+        return {
+          ...buildVigicruesStationCopy(station, t),
+          accent: station.color,
+          position: Cesium.Cartesian3.fromDegrees(station.lon, station.lat),
+        };
+      }
+      const zone = _zones.find((entry) => entry.id === pick.id);
+      if (!zone || !click.position) return null;
+      return { ...buildVigicruesZoneCopy(zone, t), accent: zone.color };
+    },
+  });
 
   const notify = () => rowControlsListener?.();
 
@@ -72,6 +107,7 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
       _enabled = true;
       if (_dataSource) _dataSource.show = true;
       overlayHost.setVisible(VIGICRUES_OVERLAY_SOURCE_ID, true);
+      card.install(_viewer);
       notify();
     },
 
@@ -83,6 +119,7 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
       if (_dataSource) _dataSource.show = false;
       overlayHost.clearSource(VIGICRUES_OVERLAY_SOURCE_ID);
       overlayHost.setVisible(VIGICRUES_OVERLAY_SOURCE_ID, false);
+      card.remove();
       notify();
     },
 
@@ -125,6 +162,7 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
     _render() {
       if (!_dataSource) return;
       _dataSource.entities.removeAll();
+      card.clear();
       const overlayEntries = [];
       for (const station of _stations) {
         const position = Cesium.Cartesian3.fromDegrees(
@@ -134,7 +172,7 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
         const color = Cesium.Color.fromCssColorString(station.color);
         _dataSource.entities.add(
           new Cesium.Entity({
-            id: `vigicrues-station:${station.id}`,
+            id: `${VIGICRUES_STATION_PICK_PREFIX}${station.id}`,
             position,
             ellipse: {
               // Static axes: a per-frame axis re-tessellates the clamped
@@ -192,7 +230,7 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
           if (line.length < 2) continue;
           _dataSource.entities.add(
             new Cesium.Entity({
-              id: `vigicrues-zone:${zone.id}:${index}`,
+              id: `${VIGICRUES_ZONE_PICK_PREFIX}${zone.id}:${index}`,
               polyline: {
                 // Static positions: a CallbackProperty here re-tessellates the
                 // clamped ground primitive every frame.
@@ -219,6 +257,7 @@ export function createVigicruesFloodsLayer({ source, overlayHost } = {}) {
       _enabled = false;
       overlayHost.clearSource(VIGICRUES_OVERLAY_SOURCE_ID);
       overlayHost.setVisible(VIGICRUES_OVERLAY_SOURCE_ID, false);
+      card.remove();
       if (_dataSource) {
         viewer?.dataSources?.remove(_dataSource, true);
         _dataSource = null;

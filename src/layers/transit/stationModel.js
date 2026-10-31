@@ -30,8 +30,8 @@ export const TRANSIT_STATIONS_OVERLAY_COLLISION_CAPACITY = 32;
 
 /**
  * The colours the rail segments are drawn in. The network segments
- * (`segment_drg`) group the stations by rail administration; each gets its
- * own colour so the map reads as a network rather than a scatter.
+ * (`segment_drg`) group the stations by rail administration (the catalogue
+ * publishes A, B and C); each gets its own colour so the map reads as a network rather than a scatter.
  */
 export const TRANSIT_STATION_SEGMENT_COLORS = Object.freeze({
   // Blue, pink and teal: none of them is a Transit mode colour (bus green,
@@ -40,9 +40,6 @@ export const TRANSIT_STATION_SEGMENT_COLORS = Object.freeze({
   A: '#4f8cff',
   B: '#ff6fb5',
   C: '#2ec4b6',
-  D: '#ff6b35',
-  E: '#a78bfa',
-  F: '#f77f00',
 });
 
 /** The colour used for a segment the palette does not name. */

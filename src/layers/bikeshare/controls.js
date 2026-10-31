@@ -120,7 +120,7 @@ export function createControls({ state: layerState, services, parts, source }) {
                   bikes: onTheGround,
                 }),
         infoTitle: t(
-          'Every city in this row is a GBFS feed read through the same proxy, Paris and Velib among them. Availability is per station, not per bike.',
+          'Every city in this row is a GBFS feed read through the same proxy. Availability is per station, not per bike.',
         ),
       };
     },
