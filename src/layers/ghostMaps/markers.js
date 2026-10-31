@@ -52,6 +52,23 @@ export const GHOST_MARKER_SIZE = 72;
 /** Billboard scale at 1x: the sprite is shown at about 29 px. */
 export const GHOST_MARKER_DISPLAY_SCALE = 0.4;
 
+/**
+ * Camera distance (m) at which a marker changes between its symbol and a
+ * plain dot.
+ *
+ * A symbol is about 29 px wide. At a 60 degree field of view on a ~1000 px
+ * high view one pixel spans roughly distance x 0.00115 m, so two events 40 km
+ * apart start to overlap near 1,200 km. Beyond that the layer draws small
+ * dots, which stay readable as a cluster; inside it each event gets its
+ * symbol. The distance is camera-to-marker, so a tilted view switches by how
+ * far the marker really is, not by the altitude of the camera alone.
+ */
+export const GHOST_SYMBOL_MAX_DISTANCE_M = 1_200_000;
+/** Diameter (px) of the far-view dot. */
+export const GHOST_DOT_SIZE_PX = 6;
+/** Colour of the far-view dot: the symbols' own cyan frame. */
+export const GHOST_DOT_COLOR = '#00d4ff';
+
 /** The Cyber theme's accent, and a lighter tint for the glyph strokes. */
 export const GHOST_MARKER_FRAME_COLOR = '#00d4ff';
 export const GHOST_MARKER_GLYPH_COLOR = '#b6f4ff';

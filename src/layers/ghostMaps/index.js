@@ -15,7 +15,10 @@ import {
 import { createHorizonCull } from '../streetLevel/view.js';
 import { readGhostMapsKml } from './kml.js';
 import {
+  GHOST_DOT_COLOR,
+  GHOST_DOT_SIZE_PX,
   GHOST_MARKER_DISPLAY_SCALE,
+  GHOST_SYMBOL_MAX_DISTANCE_M,
   ghostEventKind,
   ghostMarkerImage,
   ghostMarkerTint,
@@ -231,6 +234,28 @@ export function createGhostMapsLayer({
                 // Ground-clamped icons would sink into terrain and 3D tiles; the
                 // horizon cull hides the far side instead (see `_horizon`).
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                // Close up: the symbol. Far away it hands over to the dot
+                // below, so a dense region does not smear into one blob.
+                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
+                  0,
+                  GHOST_SYMBOL_MAX_DISTANCE_M,
+                ),
+              },
+              point: {
+                pixelSize: GHOST_DOT_SIZE_PX,
+                color:
+                  Cesium.Color.fromCssColorString(GHOST_DOT_COLOR).withAlpha(
+                    0.9,
+                  ),
+                outlineColor:
+                  Cesium.Color.fromCssColorString('#041016').withAlpha(0.9),
+                outlineWidth: 1,
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+                disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
+                  GHOST_SYMBOL_MAX_DISTANCE_M,
+                  Number.POSITIVE_INFINITY,
+                ),
               },
             });
             pins.push({
