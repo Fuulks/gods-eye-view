@@ -14,7 +14,11 @@ import {
 } from '../../i18n/index.js';
 import { createHorizonCull } from '../streetLevel/view.js';
 import { readGhostMapsKml } from './kml.js';
-import { ghostMarkerImage, ghostMarkerKind, isNeutralTint } from './markers.js';
+import {
+  GHOST_MARKER_DISPLAY_SCALE,
+  ghostEventKind,
+  ghostMarkerImage,
+} from './markers.js';
 import { fieldLabel, parseDescriptionFields, wrapCardText } from './records.js';
 export * from './catalog.js';
 export * from './records.js';
@@ -199,15 +203,18 @@ export function createGhostMapsLayer({
               id,
               position,
               billboard: {
-                // One shared flat sprite per shape; the colour is a tint.
-                image: ghostMarkerImage(ghostMarkerKind(style.iconHref)),
-                scale: Math.min(
-                  1.5,
-                  Math.max(0.35, (style.iconScale ?? 1) * 0.7),
+                // One shared sprite per kind of event (see markers.js).
+                image: ghostMarkerImage(
+                  ghostEventKind({
+                    folder: feature.folder,
+                    name: feature.name,
+                    iconHref: style.iconHref,
+                    description: feature.description,
+                  }),
                 ),
-                color: isNeutralTint(style.iconColor)
-                  ? Cesium.Color.fromCssColorString(color)
-                  : cesiumColor(style.iconColor),
+                scale:
+                  Math.min(1.5, Math.max(0.6, style.iconScale ?? 1)) *
+                  GHOST_MARKER_DISPLAY_SCALE,
                 heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
                 verticalOrigin: Cesium.VerticalOrigin.CENTER,
                 // Ground-clamped icons would sink into terrain and 3D tiles; the

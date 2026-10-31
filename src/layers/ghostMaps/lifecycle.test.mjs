@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as Cesium from 'cesium';
+import { GHOST_MARKER_DISPLAY_SCALE } from './markers.js';
 import { createGhostMapsLayer } from './index.js';
 
 function element(localName, children = [], value = '', attributes = {}) {
@@ -157,19 +158,14 @@ test('a load never decodes the packed icons: no object URL is created, kept or r
   assert.equal(mounted.size, 0);
 });
 
-test('a placemark is drawn with the product colour as a tint on the shared sprite', async (t) => {
+test('a placemark is drawn as a shared symbol at the display scale, with no tint', async (t) => {
   const { layer, viewer, mounted } = fixture(t);
   await layer.update(viewer);
   const [dataSource] = [...mounted];
   const [entity] = dataSource.entities.values;
-  const tint = entity.billboard.color.getValue();
-  // The fixture's style carries no colour, so the product colour is used.
-  assert.ok(tint.alpha > 0);
-  assert.notDeepEqual(
-    [tint.red, tint.green, tint.blue],
-    [1, 1, 1],
-    'a white tint would draw a white marker',
-  );
+  // The symbol carries its own colour: nothing may tint it.
+  assert.equal(entity.billboard.color, undefined);
+  assert.equal(entity.billboard.scale.getValue(), GHOST_MARKER_DISPLAY_SCALE);
 });
 
 test('entity construction failure leaves nothing mounted and reports the error', async (t) => {
