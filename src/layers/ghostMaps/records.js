@@ -1,6 +1,7 @@
 // Pure helpers for GhostMaps placemarks: description tables to plain fields,
 // KML colors, and card text wrapping. Strings in, data out — description
 // markup is only ever read as text, never inserted into the page.
+import { kmlColor } from '../../data/kmlTint.js';
 
 const ENTITIES = Object.freeze({
   amp: '&',
@@ -102,7 +103,7 @@ export function parseDescriptionFields(html) {
 // The KML colour rules live with the import feature, which obeys the same
 // ones (see ../../data/kmlTint.js). They are re-exported here because this
 // module's exports are the Ghost Maps layer's public API.
-export { kmlColor } from '../../data/kmlTint.js';
+export { kmlColor };
 
 /**
  * Greedy word wrap for canvas card lines; overlong words are cut.

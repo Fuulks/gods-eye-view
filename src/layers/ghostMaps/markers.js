@@ -21,7 +21,10 @@
  * scanned: it is full of words (`strike`, `fire`) that describe something
  * else. A placemark that says nothing recognisable is a plain `report`.
  */
-import { MARKER_TINT_ALPHA_FLOOR } from '../../data/kmlTint.js';
+import {
+  MARKER_TINT_ALPHA_FLOOR,
+  isNeutralTint,
+} from '../../data/kmlTint.js';
 
 /**
  * The event kinds, in the order the rules below are tried.
@@ -424,7 +427,7 @@ const spriteFailures = new Set();
 // style is a placeholder, and a tint too faint to see must not hide a marker.
 // They are re-exported here because this module's exports are the Ghost Maps
 // layer's public API.
-export { isNeutralTint } from '../../data/kmlTint.js';
+export { isNeutralTint };
 
 /**
  * The smallest alpha a tint may have and still show the symbol underneath.
