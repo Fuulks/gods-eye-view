@@ -70,7 +70,8 @@ export function fieldValue(raw, key) {
  * @param {object} raw ODS record.
  * @param {number} index Record index (fallback id).
  * @returns {{id: string, name: string|null, shortCode: string|null,
- *   uic: string|null, lon: number, lat: number, segment: string|null}|null}
+ *   uic: string|null, insee: string|null, lon: number, lat: number,
+ *   segment: string|null}|null}
  */
 export function normalizeSncfStation(raw, index = 0) {
   const position = fieldValue(raw, 'position_geographique');
@@ -89,6 +90,8 @@ export function normalizeSncfStation(raw, index = 0) {
     name: text(fieldValue(raw, 'nom')),
     shortCode: text(fieldValue(raw, 'libellecourt')),
     uic,
+    // The INSEE code of the commune the station stands in (`codeinsee`).
+    insee: text(fieldValue(raw, 'codeinsee')),
     lon,
     lat,
     segment: text(fieldValue(raw, 'segment_drg')),

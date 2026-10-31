@@ -4,6 +4,7 @@ import * as Cesium from 'cesium';
 import {
   STATION_PIN_DISABLE_DEPTH_TEST_DISTANCE,
   STATION_PIN_SCALE_BY_DISTANCE,
+  STATION_PIN_SELECTED_SIZE,
   STATION_PIN_SIZE_LOCAL,
   STATION_PIN_SIZE_PRINCIPAL,
   STATION_PIN_TRANSLUCENCY_BY_DISTANCE,
@@ -129,4 +130,134 @@ test('the display chips hide and show the station pins', () => {
   assert.equal(app.overlaySources.get('transit-stations:visible'), true);
   app.network.applyDisplayMode('both');
   assert.equal(app.state._stationPoints.show, true);
+});
+
+/** The harness needs the card slot the selection shares with vehicles. */
+function selectableHarness() {
+  const app = harness();
+  const cleared = [];
+  app.state._overlayHost.clearSource = (id) => {
+    cleared.push(id);
+    app.overlaySources.delete(id);
+  };
+  app.state._stations = [
+    {
+      id: 'chindrieux',
+      name: 'Chindrieux',
+      shortCode: 'CWX',
+      uic: '87741116',
+      insee: '73085',
+      segment: 'C',
+      lon: 5.8468876,
+      lat: 45.8034376,
+    },
+    {
+      id: 'vitry',
+      name: 'Vitry-en-Artois',
+      shortCode: 'VYN',
+      uic: '87342113',
+      insee: '62865',
+      segment: 'C',
+      lon: 2.9820833,
+      lat: 50.3276092,
+    },
+  ];
+  app.network.renderStations();
+  return { ...app, cleared };
+}
+
+test('selecting a station highlights its pin and publishes a card with every catalogue field', () => {
+  const app = selectableHarness();
+  assert.equal(app.network.selectStation('chindrieux'), true);
+  const card = app.overlaySources.get('transit-selected')[0];
+  assert.equal(card.title, 'Chindrieux');
+  const text = card.details.join('\n');
+  for (const field of ['CWX', '87741116', 'Segment C', '73085', '45.80344']) {
+    assert.ok(text.includes(field), `the card carries ${field}`);
+  }
+  const pin = app.state._stationPointById.get('chindrieux');
+  assert.equal(pin.pixelSize, STATION_PIN_SELECTED_SIZE);
+  // The other pin is untouched.
+  assert.equal(
+    app.state._stationPointById.get('vitry').pixelSize,
+    STATION_PIN_SIZE_PRINCIPAL,
+  );
+});
+
+test('selecting another station moves the highlight; clearing restores the pin and the card slot', () => {
+  const app = selectableHarness();
+  app.network.selectStation('chindrieux');
+  app.network.selectStation('vitry');
+  assert.equal(
+    app.state._stationPointById.get('chindrieux').pixelSize,
+    STATION_PIN_SIZE_PRINCIPAL,
+  );
+  assert.equal(app.overlaySources.get('transit-selected')[0].title, 'Vitry-en-Artois');
+  assert.equal(app.network.clearStationSelection(), true);
+  assert.equal(
+    app.state._stationPointById.get('vitry').pixelSize,
+    STATION_PIN_SIZE_PRINCIPAL,
+  );
+  assert.equal(app.overlaySources.has('transit-selected'), false);
+  assert.equal(app.state._stationSelectedId, null);
+  // Nothing selected: clearing again is a no-op.
+  assert.equal(app.network.clearStationSelection(), false);
+});
+
+test('hiding the stations drops a selected station card; an unknown id selects nothing', () => {
+  const app = selectableHarness();
+  assert.equal(app.network.selectStation('nowhere'), false);
+  app.network.selectStation('chindrieux');
+  app.network.applyDisplayMode('vehicles');
+  assert.equal(app.state._stationSelectedId, null);
+  assert.equal(app.overlaySources.has('transit-selected'), false);
+  // With the stations hidden they cannot be picked.
+  assert.equal(app.network.selectStation('chindrieux'), false);
+});
+
+test('a catalogue rebuild keeps the selection, and drops it when the station is gone', () => {
+  const app = selectableHarness();
+  app.network.selectStation('vitry');
+  app.network.renderStations();
+  assert.equal(app.state._stationSelectedId, 'vitry');
+  assert.equal(
+    app.state._stationPointById.get('vitry').pixelSize,
+    STATION_PIN_SELECTED_SIZE,
+  );
+  app.state._stations = app.state._stations.filter((s) => s.id !== 'vitry');
+  app.network.renderStations();
+  assert.equal(app.state._stationSelectedId, null);
+  assert.equal(app.overlaySources.has('transit-selected'), false);
+});
+
+test('labels follow the camera: nearest the view, none from a national view', () => {
+  const app = selectableHarness();
+  const rect = Cesium.Rectangle.fromDegrees(5, 45, 7, 47);
+  let height = 50_000;
+  app.state._viewer = {
+    camera: {
+      get positionCartographic() {
+        return { height };
+      },
+      computeViewRectangle: () => rect,
+    },
+    scene: { globe: {} },
+  };
+  app.network.refreshLabels();
+  assert.deepEqual(
+    app.overlaySources.get('transit-stations').map((e) => e.id),
+    ['chindrieux'],
+    'only the station inside the view is named',
+  );
+  height = 3_000_000;
+  app.network.refreshLabels();
+  assert.deepEqual(app.overlaySources.get('transit-stations'), []);
+});
+
+test('the selected station is not also named by an ambient label', () => {
+  const app = selectableHarness();
+  app.network.selectStation('chindrieux');
+  const ids = app.overlaySources.get('transit-stations').map((e) => e.id);
+  assert.equal(ids.includes('chindrieux'), false);
+  assert.equal(ids.includes('vitry'), true);
 });

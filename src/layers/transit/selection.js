@@ -9,6 +9,7 @@ import {
 import { getRegisteredTransitFeed } from '../../data/transitFeeds.js';
 import { isPointerFree } from '../../data/inputOwnership.js';
 import { t } from '../../i18n/index.js';
+import { transitStationIdFromPick } from './stationModel.js';
 
 /**
  * Click-to-select one vehicle and a card that follows it.
@@ -99,6 +100,8 @@ export function createSelection({ state, services, parts }) {
   }
 
   function selectVehicle(key) {
+    // A vehicle card and a station card share one slot.
+    parts.stations?.clearStationSelection();
     clearSelection();
     const entry = state._vehicles.get(key);
     if (!entry?.marker) return;
@@ -111,7 +114,9 @@ export function createSelection({ state, services, parts }) {
   }
 
   function onKeyDown(event) {
-    if (event.key === 'Escape' && state._selectedKey) clearSelection();
+    if (event.key !== 'Escape') return;
+    if (state._selectedKey) clearSelection();
+    parts.stations?.clearStationSelection();
   }
 
   function installClickHandler(viewer) {
@@ -186,8 +191,13 @@ export function createSelection({ state, services, parts }) {
           selectVehicle(picked.id);
           return;
         }
+        const stationId =
+          transitStationIdFromPick(primitiveId) ??
+          transitStationIdFromPick(picked.id);
+        if (stationId && parts.stations.selectStation(stationId)) return;
       }
       if (state._selectedKey) clearSelection();
+      parts.stations.clearStationSelection();
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
     document.addEventListener('keydown', onKeyDown);
   }

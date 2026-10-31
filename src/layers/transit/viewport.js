@@ -127,6 +127,7 @@ export function createViewport({ state, services, parts }) {
     clearTimeout(state._cameraDebounceTimer);
     state._cameraDebounceTimer = setTimeout(() => {
       state._cameraDebounceTimer = null;
+      parts.stations.refreshLabels();
       runProximityCheck();
     }, CAMERA_DEBOUNCE_MS);
   }

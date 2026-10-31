@@ -4015,3 +4015,71 @@ test('parked transit reprojects held and reported courses at the bounded camera 
     'selected unknown course also stays screen-up',
   );
 });
+
+test('clicking a station pin opens its card; a vehicle click, empty space and Escape close it', async (t) => {
+  const app = harness(t, { floorAt: () => undefined });
+  app.layer.enable(app.viewer);
+  app.layer._loadTransitFleetForTest(4, BOSTON, 70);
+  const parts = app.layer._transitPartsForTest();
+  app.state()._stations = [
+    {
+      id: 'chindrieux',
+      name: 'Chindrieux',
+      shortCode: 'CWX',
+      uic: '87741116',
+      insee: '73085',
+      segment: 'C',
+      lon: 5.8468876,
+      lat: 45.8034376,
+    },
+  ];
+  parts.stations.renderStations();
+  const click = () =>
+    app
+      .state()
+      ._clickHandler.getInputAction(Cesium.ScreenSpaceEventType.LEFT_CLICK)({
+      position: new Cesium.Cartesian2(500, 400),
+    });
+  const pin = app.state()._stationPointById.get('chindrieux');
+
+  // The pick owner claims the pin, so other layers leave the click alone.
+  assert.equal(app.pickOwners.get('transit')('sncf-station:chindrieux'), true);
+  assert.equal(app.pickOwners.get('transit')('somebody-else'), false);
+
+  // Both pick shapes reach the station.
+  for (const pick of [{ primitive: pin }, { id: pin.id }]) {
+    app.viewer.scene.pick = () => pick;
+    click();
+    assert.equal(app.state()._stationSelectedId, 'chindrieux');
+    assert.equal(
+      app.overlaySources.get('transit-selected')[0].title,
+      'Chindrieux',
+    );
+    app.viewer.scene.pick = () => undefined;
+    click();
+    assert.equal(app.state()._stationSelectedId, null);
+  }
+
+  // A vehicle click replaces the station card, and the pin goes back.
+  const entry = app.vehicles()[0];
+  app.viewer.scene.pick = () => ({ primitive: pin });
+  click();
+  app.viewer.scene.pick = () => ({ id: entry.key });
+  click();
+  assert.equal(app.state()._selectedKey, entry.key);
+  assert.equal(app.state()._stationSelectedId, null);
+
+  // A station click replaces the vehicle card.
+  app.viewer.scene.pick = () => ({ primitive: pin });
+  click();
+  assert.equal(app.state()._selectedKey, null);
+  assert.equal(app.state()._stationSelectedId, 'chindrieux');
+
+  // Escape closes it, and disable leaves nothing selected.
+  parts.selection.onKeyDown({ key: 'Escape' });
+  assert.equal(app.state()._stationSelectedId, null);
+  app.viewer.scene.pick = () => ({ primitive: pin });
+  click();
+  app.layer.disable(app.viewer);
+  assert.equal(app.state()._stationSelectedId, null);
+});

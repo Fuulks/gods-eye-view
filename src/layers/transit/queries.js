@@ -66,6 +66,14 @@ function feedForEntry(state, entry) {
  * @returns {object}
  */
 export function createQueries({ state, parts }) {
+  /**
+   * The stations the row is drawing. In the Vehicles view none are drawn, so
+   * none are counted or reported to the voice and analyst queries.
+   */
+  function drawnStations() {
+    return state._display === 'vehicles' ? [] : state._stations || [];
+  }
+
   const empty = [];
   const defaults = {};
   let requestedMax = Infinity,
@@ -272,7 +280,7 @@ export function createQueries({ state, parts }) {
       // The French passenger-station network the same row draws. Its rows are
       // station records, not vehicle records, so they carry the station's own
       // fields rather than a vehicle's.
-      for (const station of state._stations || []) {
+      for (const station of drawnStations()) {
         if (result.length >= maxCount) break;
         result.push({
           id: station.id,
@@ -373,7 +381,7 @@ export function createQueries({ state, parts }) {
       // The row counts what it DRAWS: the live fleet plus the French
       // passenger stations. The stations are static, so they are counted from
       // the catalogue rather than from a poll.
-      const stationCount = (state._stations || []).length;
+      const stationCount = drawnStations().length;
       const stationNote = stationCount ? ` · ${stationCount} stations` : '';
       if (state._enabled && active.length === 0) {
         return {

@@ -325,6 +325,7 @@ export function normalizeTransitStationPayload(payload) {
       name: String(raw?.name ?? '').trim() || id,
       shortCode: String(raw?.shortCode ?? '').trim() || null,
       uic: String(raw?.uic ?? '').trim() || null,
+      insee: String(raw?.insee ?? '').trim() || null,
       lon,
       lat,
       segment,
@@ -356,6 +357,7 @@ export function mapTransitStationRecord(raw, index = 0) {
     name: text(raw?.name),
     shortCode: text(raw?.shortCode),
     uic: text(raw?.uic),
+    insee: text(raw?.insee),
     segment: text(raw?.segment),
     lat: num(raw?.lat),
     lon: num(raw?.lon),
@@ -391,6 +393,169 @@ export function createTransitStationOverlayEntry({
     verticalOnly: true,
     placement: 'above',
   };
+}
+
+/** The id prefix every station pin carries, so a click can be recognised. */
+export const TRANSIT_STATION_PICK_PREFIX = 'sncf-station:';
+
+/**
+ * The station id behind a picked primitive id, or null when the pick is not a
+ * station pin.
+ *
+ * @param {*} pickedId
+ * @returns {string|null}
+ */
+export function transitStationIdFromPick(pickedId) {
+  if (typeof pickedId !== 'string') return null;
+  if (!pickedId.startsWith(TRANSIT_STATION_PICK_PREFIX)) return null;
+  return pickedId.slice(TRANSIT_STATION_PICK_PREFIX.length) || null;
+}
+
+/** Above this camera height (m) no station name is drawn: it would be noise. */
+export const TRANSIT_STATIONS_LABEL_MAX_ALTITUDE_M = 400_000;
+
+/**
+ * The text of a station's card: its name, and every field the SNCF catalogue
+ * publishes for it. Nothing is invented: a field the record does not carry is
+ * left out rather than shown as a dash.
+ *
+ * @param {object} station A normalized station row.
+ * @param {(text: string, params?: object) => string} [t] Translator.
+ * @returns {{title: string, details: string[]}}
+ */
+export function buildTransitStationCopy(
+  station,
+  t = (text, params) =>
+    params
+      ? text.replace(/\{(\w+)\}/g, (_m, key) => String(params[key] ?? ''))
+      : text,
+) {
+  const details = [`${t('Rail station')} · SNCF`];
+  const codes = [];
+  if (station?.shortCode)
+    codes.push(t('Code {code}', { code: station.shortCode }));
+  if (station?.uic) codes.push(t('UIC {uic}', { uic: station.uic }));
+  if (codes.length) details.push(codes.join(' · '));
+  // The catalogue lists every rail segment a station belongs to, separated by
+  // semicolons ('A;B;A'); the card shows the list as published.
+  if (station?.segment)
+    details.push(t('Segment {segment}', { segment: station.segment }));
+  if (station?.insee)
+    details.push(t('Commune INSEE {insee}', { insee: station.insee }));
+  if (Number.isFinite(station?.lat) && Number.isFinite(station?.lon))
+    details.push(
+      t('{lat}°, {lon}°', {
+        lat: station.lat.toFixed(5),
+        lon: station.lon.toFixed(5),
+      }),
+    );
+  return { title: station?.name || station?.id || '', details };
+}
+
+/**
+ * The selected-station card, in the shape the shared overlay host draws for a
+ * selected vehicle, so the two cards look the same.
+ *
+ * @param {string} key Station id.
+ * @param {*} position Anchor (Cartesian3 or getter).
+ * @param {{title: string, details: string[]}} copy
+ * @param {string} accent CSS colour.
+ * @returns {object|null}
+ */
+export function createTransitStationSelectedOverlayEntry(
+  key,
+  position,
+  copy,
+  accent,
+) {
+  if (!key || !position) return null;
+  return {
+    id: `${TRANSIT_STATION_PICK_PREFIX}${key}`,
+    position,
+    variant: 'selected',
+    selected: true,
+    protected: true,
+    paintLane: 'selected',
+    collisionGroup: 'ambient-card',
+    priority: Number.MAX_SAFE_INTEGER,
+    title: copy.title,
+    details: copy.details,
+    accent,
+    interactive: false,
+    anchorRadiusPx: 9,
+    minAnchorGapPx: 11,
+    verticalOnly: true,
+    placement: 'above',
+    edgeFade: 'keyhole',
+    horizonCull: true,
+    terrainOcclusion: false,
+  };
+}
+
+/**
+ * The stations whose names are worth drawing for the current view: those
+ * inside the view bounds, nearest the view centre first, principal stations
+ * ahead of local ones at equal distance. Bounded, and stable for a given view.
+ *
+ * With no bounds (no camera information) every station is a candidate and
+ * the order falls back to the station id.
+ *
+ * @param {Array<object>} stations Normalized station rows.
+ * @param {{south: number, north: number, west: number, east: number}|null} bounds
+ *   View bounds in degrees; west > east means the view crosses the antimeridian.
+ * @param {{limit?: number, exclude?: string|null}} [options]
+ * @returns {Array<object>} The chosen station rows.
+ */
+export function selectTransitStationLabelCohort(
+  stations,
+  bounds,
+  { limit = TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT, exclude = null } = {},
+) {
+  const cap = Math.max(
+    0,
+    Math.min(
+      TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT,
+      Math.floor(Number(limit) || 0),
+    ),
+  );
+  if (!Array.isArray(stations) || cap === 0) return [];
+  const inLon = (lon) =>
+    !bounds
+      ? true
+      : bounds.west <= bounds.east
+        ? lon >= bounds.west && lon <= bounds.east
+        : lon >= bounds.west || lon <= bounds.east;
+  const centerLat = bounds ? (bounds.south + bounds.north) / 2 : 0;
+  const centerLon = bounds
+    ? bounds.west <= bounds.east
+      ? (bounds.west + bounds.east) / 2
+      : (((bounds.west + bounds.east + 360) / 2 + 180) % 360) - 180
+    : 0;
+  const lonDelta = (lon) => {
+    const d = Math.abs(lon - centerLon) % 360;
+    return d > 180 ? 360 - d : d;
+  };
+  const candidates = [];
+  for (const station of stations) {
+    if (!station || station.id === exclude) continue;
+    if (bounds && (station.lat < bounds.south || station.lat > bounds.north))
+      continue;
+    if (!inLon(station.lon)) continue;
+    const dLat = station.lat - centerLat;
+    const dLon = lonDelta(station.lon) * Math.cos((centerLat * Math.PI) / 180);
+    candidates.push({
+      station,
+      distance: bounds ? dLat * dLat + dLon * dLon : 0,
+      rank: station.shortCode ? 0 : 1,
+    });
+  }
+  candidates.sort(
+    (a, b) =>
+      a.distance - b.distance ||
+      a.rank - b.rank ||
+      String(a.station.id).localeCompare(String(b.station.id)),
+  );
+  return candidates.slice(0, cap).map((entry) => entry.station);
 }
 
 /** Keep a bounded cohort of labels, with stable identity as the tie-break. */

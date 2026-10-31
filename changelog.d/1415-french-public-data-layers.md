@@ -52,3 +52,4 @@
   and the detail segment is reserved for a feed that is degraded, partial,
   stale or erroring (Fuulks, #1415).
 - Follow the operator's same-origin redirect on the VIGICRUES station catalogue instead of treating the 302 as a failure; the route answers 200 and the warning-zone route, which carries the row's legend counts, is unaffected (Fuulks, #1415).
+- Click a station pin on the Transit row to open its card: the station name, short code, UIC code, rail segment, commune INSEE code and position, with the pin ringed while it is selected. Escape or a click on empty space closes it, and it shares the one selected-card slot with vehicles. Station names are now drawn for the stations nearest the view centre (and only below 400 km), instead of the first 48 by id; the Vehicles view no longer reports hidden stations (Fuulks, #1415).

@@ -43,6 +43,11 @@ export function createState({ services }) {
   state._stationUpdatedAt = null;
   /** The station catalogue's own failure, if any. @type {string|null} */
   state._stationError = null;
+  /** Station rows and their pins by station id, for picking. */
+  state._stationById = new Map();
+  state._stationPointById = new Map();
+  /** The selected station's id, or null. */
+  state._stationSelectedId = null;
   /** The in-flight station request, so disable() can abort it. */
   state._stationRequest = null;
   state._visible = new Set();

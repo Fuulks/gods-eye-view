@@ -196,3 +196,84 @@ test('the legend labels name the rank and the segment plainly', () => {
   assert.equal(entries[0].segmentLabel, 'Segment A');
   assert.equal(entries[1].label, 'Local station ({segment})');
 });
+
+import {
+  TRANSIT_STATION_PICK_PREFIX,
+  buildTransitStationCopy,
+  selectTransitStationLabelCohort,
+  transitStationIdFromPick,
+} from './stationModel.js';
+
+test('a station pin id is recognised, and nothing else is', () => {
+  assert.equal(transitStationIdFromPick(`${TRANSIT_STATION_PICK_PREFIX}abc`), 'abc');
+  assert.equal(transitStationIdFromPick(TRANSIT_STATION_PICK_PREFIX), null);
+  assert.equal(transitStationIdFromPick('mbta:bus-1'), null);
+  assert.equal(transitStationIdFromPick(42), null);
+  assert.equal(transitStationIdFromPick(undefined), null);
+});
+
+test('the station card carries the name and only the fields the record has', () => {
+  const full = buildTransitStationCopy({
+    id: 'x',
+    name: 'Chindrieux',
+    shortCode: 'CWX',
+    uic: '87741116',
+    insee: '73085',
+    segment: 'A;B;A',
+    lat: 45.8034376,
+    lon: 5.8468876,
+  });
+  assert.equal(full.title, 'Chindrieux');
+  assert.deepEqual(full.details, [
+    'Rail station · SNCF',
+    'Code CWX · UIC 87741116',
+    'Segment A;B;A',
+    'Commune INSEE 73085',
+    '45.80344°, 5.84689°',
+  ]);
+  const bare = buildTransitStationCopy({ id: 'x', name: 'x', lat: 1, lon: 2 });
+  assert.deepEqual(bare.details, ['Rail station · SNCF', '1.00000°, 2.00000°']);
+});
+
+test('the label cohort keeps the stations in view, nearest the centre first, within the cap', () => {
+  const stations = [
+    { id: 'far', lat: 46.9, lon: 6.9, shortCode: 'FAR' },
+    { id: 'mid', lat: 46.2, lon: 6.2, shortCode: null },
+    { id: 'near', lat: 46.0, lon: 6.0, shortCode: 'NEA' },
+    { id: 'out', lat: 10, lon: 10, shortCode: 'OUT' },
+  ];
+  const bounds = { south: 45, north: 47, west: 5, east: 7 };
+  assert.deepEqual(
+    selectTransitStationLabelCohort(stations, bounds).map((s) => s.id),
+    ['near', 'mid', 'far'],
+  );
+  assert.deepEqual(
+    selectTransitStationLabelCohort(stations, bounds, { limit: 1 }).map((s) => s.id),
+    ['near'],
+  );
+  assert.deepEqual(
+    selectTransitStationLabelCohort(stations, bounds, { exclude: 'near' }).map((s) => s.id),
+    ['mid', 'far'],
+  );
+  // No camera information: every station is a candidate; principal stations
+  // (those with a short code) lead, then the station id breaks ties.
+  assert.deepEqual(
+    selectTransitStationLabelCohort(stations, null).map((s) => s.id),
+    ['far', 'near', 'out', 'mid'],
+  );
+});
+
+test('the label cohort understands a view that crosses the antimeridian', () => {
+  const stations = [
+    { id: 'east', lat: 0, lon: 179.5 },
+    { id: 'west', lat: 0, lon: -179.5 },
+    { id: 'away', lat: 0, lon: 0 },
+  ];
+  const ids = selectTransitStationLabelCohort(stations, {
+    south: -1,
+    north: 1,
+    west: 179,
+    east: -179,
+  }).map((s) => s.id);
+  assert.deepEqual(ids.sort(), ['east', 'west']);
+});

@@ -8,7 +8,10 @@ import {
   CAMERA_PERCENTAGE_CHANGED,
   TRANSIT_SELECTED_OVERLAY_SOURCE_ID,
 } from './policy.js';
-import { TRANSIT_STATIONS_OVERLAY_SOURCE_ID } from './stations.js';
+import {
+  TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
+  transitStationIdFromPick,
+} from './stations.js';
 import { TRANSIT_ENABLED_FEEDS } from '../../data/transitFeeds.js';
 
 /**
@@ -217,7 +220,12 @@ export function createLifecycle({ state, services, parts }) {
       );
       state._overlayHost.setVisible(TRANSIT_SELECTED_OVERLAY_SOURCE_ID, true);
       parts.selection.installClickHandler(viewer);
-      registerPickOwner('transit', (pickedId) => state._vehicles.has(pickedId));
+      registerPickOwner(
+        'transit',
+        (pickedId) =>
+          state._vehicles.has(pickedId) ||
+          transitStationIdFromPick(pickedId) !== null,
+      );
       if (!state._cameraChangedAttached) {
         viewer.camera.changed.addEventListener(parts.viewport.onCameraChanged);
         borrowCameraSensitivity(viewer);
@@ -252,6 +260,7 @@ export function createLifecycle({ state, services, parts }) {
       clearTimeout(state._cameraDebounceTimer);
       state._cameraDebounceTimer = null;
       parts.selection.clearSelection();
+      parts.stations.clearStationSelection();
       state._overlayHost.setVisible(TRANSIT_SELECTED_OVERLAY_SOURCE_ID, false);
       state._overlayHost.setVisible(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, false);
       state._overlayHost.clearSource(TRANSIT_STATIONS_OVERLAY_SOURCE_ID);
@@ -260,6 +269,8 @@ export function createLifecycle({ state, services, parts }) {
         state._stationPoints.show = false;
         state._stationPoints.removeAll();
       }
+      state._stationById.clear();
+      state._stationPointById.clear();
       parts.selection.removeClickHandler();
       unregisterPickOwner('transit');
       if (state._cameraChangedAttached) {

@@ -16,14 +16,23 @@
  */
 import * as Cesium from 'cesium';
 import {
+  TRANSIT_STATION_PICK_PREFIX,
   TRANSIT_STATION_RANK_PRINCIPAL,
+  TRANSIT_STATIONS_LABEL_MAX_ALTITUDE_M,
   TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT,
   TRANSIT_STATIONS_OVERLAY_COLLISION_CAPACITY,
   TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
+  buildTransitStationCopy,
   createTransitStationOverlayEntry,
-  selectTransitStationOverlayCohort,
+  createTransitStationSelectedOverlayEntry,
+  selectTransitStationLabelCohort,
   transitStationClass,
 } from './stationModel.js';
+import {
+  TRANSIT_SELECTED_OVERLAY_SOURCE_ID,
+  TRANSIT_SELECTED_OVERLAY_SOURCE_OPTIONS,
+} from './policy.js';
+import { t } from '../../i18n/index.js';
 
 /** The pin outline, the same soft black the Bike Share points use. */
 const STATION_PIN_OUTLINE_COLOR = Cesium.Color.BLACK.withAlpha(0.25);
@@ -75,6 +84,11 @@ export const STATION_PIN_TRANSLUCENCY_BY_DISTANCE = Object.freeze({
 });
 export const STATION_PIN_DISABLE_DEPTH_TEST_DISTANCE = 2_500;
 
+/** The selected pin: larger, with a white ring, like the Bike Share highlight. */
+export const STATION_PIN_SELECTED_SIZE = 14;
+export const STATION_PIN_SELECTED_OUTLINE_WIDTH = 2;
+const STATION_PIN_SELECTED_OUTLINE_COLOR = Cesium.Color.WHITE;
+
 /**
  * The station network the Transit layer owns.
  *
@@ -93,28 +107,143 @@ export function createStationNetwork({ state, services, parts, source }) {
     state._stationRequest = null;
   }
 
-  /** Rebuild the pins and the overlay labels from the current stations. */
+  /** The pin's resting look, from its station class. */
+  function stylePin(point, station, selected) {
+    const classification = transitStationClass(station);
+    const principal = classification.rank === TRANSIT_STATION_RANK_PRINCIPAL;
+    const color = Cesium.Color.fromCssColorString(classification.color);
+    point.color = color.withAlpha(0.95);
+    if (selected) {
+      point.pixelSize = STATION_PIN_SELECTED_SIZE;
+      point.outlineColor = STATION_PIN_SELECTED_OUTLINE_COLOR;
+      point.outlineWidth = STATION_PIN_SELECTED_OUTLINE_WIDTH;
+      return;
+    }
+    point.pixelSize = principal
+      ? STATION_PIN_SIZE_PRINCIPAL
+      : STATION_PIN_SIZE_LOCAL;
+    point.outlineColor = STATION_PIN_OUTLINE_COLOR;
+    point.outlineWidth = 1;
+  }
+
+  /** The station row for an id, or null. */
+  function stationById(id) {
+    return state._stationById?.get(id) ?? null;
+  }
+
+  /** Whether a station pin is on screen: the chips can hide the whole half. */
+  function stationsShown() {
+    return state._enabled && state._display !== 'vehicles';
+  }
+
+  /**
+   * Publish the names worth drawing for the current view.
+   *
+   * The cohort follows the camera: the stations nearest the view centre, and
+   * none at all from a national-scale view, where 48 arbitrary names would be
+   * noise. Only the chosen stations are built into overlay entries.
+   */
+  function refreshLabels() {
+    if (!state._overlayHost || !state._enabled) return;
+    const viewer = state._viewer;
+    const height = viewer?.camera?.positionCartographic?.height;
+    let cohort = [];
+    if (
+      !Number.isFinite(height) ||
+      height <= TRANSIT_STATIONS_LABEL_MAX_ALTITUDE_M
+    ) {
+      const rect = viewer?.camera?.computeViewRectangle?.(
+        viewer.scene?.globe?.ellipsoid,
+      );
+      const bounds = rect
+        ? {
+            south: Cesium.Math.toDegrees(rect.south),
+            north: Cesium.Math.toDegrees(rect.north),
+            west: Cesium.Math.toDegrees(rect.west),
+            east: Cesium.Math.toDegrees(rect.east),
+          }
+        : null;
+      cohort = selectTransitStationLabelCohort(state._stations, bounds, {
+        exclude: state._stationSelectedId ?? null,
+      });
+    }
+    const entries = cohort.map((station) =>
+      createTransitStationOverlayEntry({
+        id: station.id,
+        position: Cesium.Cartesian3.fromDegrees(station.lon, station.lat),
+        title: station.name,
+        accent: transitStationClass(station).color,
+      }),
+    );
+    state._overlayHost.setEntries(TRANSIT_STATIONS_OVERLAY_SOURCE_ID, entries, {
+      cohortLimit: TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT,
+      collisionCapacity: TRANSIT_STATIONS_OVERLAY_COLLISION_CAPACITY,
+      moving: false,
+    });
+    governorRequestRender('transit-station-labels');
+  }
+
+  /** Drop the selection card and restore the selected pin. */
+  function clearStationSelection() {
+    const id = state._stationSelectedId;
+    if (id == null) return false;
+    state._stationSelectedId = null;
+    const point = state._stationPointById?.get(id);
+    const station = stationById(id);
+    if (point && station) stylePin(point, station, false);
+    state._overlayHost?.clearSource(TRANSIT_SELECTED_OVERLAY_SOURCE_ID);
+    if (state._enabled) refreshLabels();
+    governorRequestRender('transit-station-deselect');
+    return true;
+  }
+
+  /**
+   * Select one station: highlight its pin and show its card.
+   *
+   * A selected vehicle and a selected station never coexist: they share the
+   * one selected-card slot, so selecting here clears the vehicle first.
+   *
+   * @param {string} id Station id.
+   * @returns {boolean} True when the station was selected.
+   */
+  function selectStation(id) {
+    const station = stationById(id);
+    const point = state._stationPointById?.get(id);
+    if (!station || !point || !stationsShown()) return false;
+    clearStationSelection();
+    parts.selection.clearSelection();
+    state._stationSelectedId = id;
+    stylePin(point, station, true);
+    const card = createTransitStationSelectedOverlayEntry(
+      id,
+      point.position,
+      buildTransitStationCopy(station, t),
+      transitStationClass(station).color,
+    );
+    if (card) {
+      state._overlayHost.setEntries(
+        TRANSIT_SELECTED_OVERLAY_SOURCE_ID,
+        [card],
+        TRANSIT_SELECTED_OVERLAY_SOURCE_OPTIONS,
+      );
+    }
+    // The card carries the name, so the ambient label for it steps aside.
+    refreshLabels();
+    governorRequestRender('transit-station-select');
+    return true;
+  }
+
+  /** Rebuild the pins from the current stations, then the labels. */
   function renderStations() {
     const points = state._stationPoints;
     if (!points) return;
     points.removeAll();
-    const overlayEntries = [];
+    state._stationById = new Map();
+    state._stationPointById = new Map();
     for (const station of state._stations) {
-      const position = Cesium.Cartesian3.fromDegrees(station.lon, station.lat);
-      // ONE classification: the pin colour and the legend counts both come
-      // from transitStationClass, so they cannot disagree.
-      const classification = transitStationClass(station);
-      const color = Cesium.Color.fromCssColorString(classification.color);
-      const principal = classification.rank === TRANSIT_STATION_RANK_PRINCIPAL;
-      points.add({
-        id: `sncf-station:${station.id}`,
-        position,
-        pixelSize: principal
-          ? STATION_PIN_SIZE_PRINCIPAL
-          : STATION_PIN_SIZE_LOCAL,
-        color: color.withAlpha(0.95),
-        outlineColor: STATION_PIN_OUTLINE_COLOR,
-        outlineWidth: 1,
+      const point = points.add({
+        id: `${TRANSIT_STATION_PICK_PREFIX}${station.id}`,
+        position: Cesium.Cartesian3.fromDegrees(station.lon, station.lat),
         scaleByDistance: new Cesium.NearFarScalar(
           STATION_PIN_SCALE_BY_DISTANCE.near,
           STATION_PIN_SCALE_BY_DISTANCE.nearScale,
@@ -129,26 +258,22 @@ export function createStationNetwork({ state, services, parts, source }) {
         ),
         disableDepthTestDistance: STATION_PIN_DISABLE_DEPTH_TEST_DISTANCE,
       });
-      overlayEntries.push(
-        createTransitStationOverlayEntry({
-          id: station.id,
-          position,
-          title: station.name,
-          accent: classification.color,
-        }),
-      );
+      stylePin(point, station, false);
+      state._stationById.set(station.id, station);
+      state._stationPointById.set(station.id, point);
     }
-    if (state._enabled) {
-      state._overlayHost.setEntries(
-        TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
-        selectTransitStationOverlayCohort(overlayEntries),
-        {
-          cohortLimit: TRANSIT_STATIONS_OVERLAY_COHORT_LIMIT,
-          collisionCapacity: TRANSIT_STATIONS_OVERLAY_COLLISION_CAPACITY,
-          moving: false,
-        },
-      );
+    // A station that is no longer in the catalogue cannot stay selected.
+    if (
+      state._stationSelectedId != null &&
+      !state._stationById.has(state._stationSelectedId)
+    ) {
+      clearStationSelection();
+    } else if (state._stationSelectedId != null) {
+      const id = state._stationSelectedId;
+      state._stationSelectedId = null;
+      selectStation(id);
     }
+    if (state._enabled) refreshLabels();
     governorRequestRender('transit-stations');
   }
 
@@ -225,6 +350,8 @@ export function createStationNetwork({ state, services, parts, source }) {
       TRANSIT_STATIONS_OVERLAY_SOURCE_ID,
       showStations,
     );
+    // A card for a pin that is no longer drawn must not linger.
+    if (!showStations) clearStationSelection();
     if (!showVehicles) {
       // The selected-vehicle card is about a live vehicle, so it goes with
       // the fleet rather than lingering over a stations-only view.
@@ -236,6 +363,9 @@ export function createStationNetwork({ state, services, parts, source }) {
 
   return {
     renderStations,
+    refreshLabels,
+    selectStation,
+    clearStationSelection,
     loadStations,
     abortStations,
     applyDisplayMode,

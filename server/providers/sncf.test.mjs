@@ -187,3 +187,20 @@ test('loadSncfStations surfaces an upstream failure', async () => {
     /upstream HTTP 500/,
   );
 });
+
+test('normalizeSncfStation carries the commune INSEE code from either record shape', () => {
+  const position = { lon: 5.8468876, lat: 45.8034376 };
+  const flat = normalizeSncfStation({
+    nom: 'Chindrieux',
+    codeinsee: '73085',
+    codes_uic: '87741116',
+    position_geographique: position,
+  });
+  assert.equal(flat.insee, '73085');
+  const body = normalizeSncfStation({
+    fields: { nom: 'Chindrieux', codeinsee: ' 73085 ', position_geographique: position },
+  });
+  assert.equal(body.insee, '73085');
+  const none = normalizeSncfStation({ position_geographique: position });
+  assert.equal(none.insee, null);
+});
