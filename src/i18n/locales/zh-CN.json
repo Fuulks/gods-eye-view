@@ -2872,21 +2872,6 @@
   "Play the shot after the selected one, moving on to the next scene when needed": "播放所选镜头的下一个镜头，必要时进入下一个场景",
   "Edit anchors, data packs and shot details": "编辑锚点、数据包和镜头详情",
   "Download this scene as JSON or an asset bundle": "将此场景下载为 JSON 或资源包",
-  "Snow": "雪景",
-  "Go to expanded Radio section": "前往展开的电台区域",
-  "Expand Radio section in Context": "在态势面板中展开电台区域",
-  "Close compact Radio controls": "关闭精简电台控件",
-  "Open compact Radio controls": "打开精简电台控件",
-  "RADIO STATE UNCERTAIN": "电台状态不确定",
-  "SYNCING DIRECTORY": "正在同步目录",
-  "RADIO READY": "电台就绪",
-  "Add a cold, snowy whiteout treatment to the scene.": "为场景添加寒冷的暴雪白化效果。",
-  "Compact Radio controls": "精简电台控件",
-  "Open detailed Radio controls": "打开详细电台控件",
-  "Previous station": "上一个电台",
-  "Next station": "下一个电台",
-  "Compact Radio volume": "精简电台音量",
-  "Operator": "操作员",
   "Activation feed unavailable": "启动信息源不可用",
   "No activations available": "没有可用的启动信息",
   "No active activations": "没有正在进行的启动",
@@ -2946,7 +2931,6 @@
   "{count} bikes on the ground": {
     "other": "站内 {count} 辆自行车"
   },
-  "Live transit vehicles and the French passenger-station network (2 792 SNCF stations) — the stations are a network, not live train positions": "实时交通车辆与法国客运站网络（SNCF 2 792 座站）——站点是网络，而非列车实时位置",
   "City docked bike share, Paris and Velib among them — live availability per station, not per bike": "城市共享单车（带桩），其中包括巴黎和 Vélib' — 可用性按站点统计，而非按单车统计",
   "Colour shows how much of the station capacity holds a bike, not how many bikes the city owns. A station with no status yet is drawn in the neutral colour.": "颜色表示车站容量中有多少被自行车占用，而不是该市拥有多少辆自行车。尚无状态的站点以中性色绘制。",
   "{description} · {bikes}": "{description} · {bikes}",
@@ -2999,5 +2983,12 @@
   "Colour shows the station class: a principal station (the SNCF catalogue gives it a public short code) keeps its rail segment colour, and a local station (no short code) is drawn in the same segment colour muted. The stations are a static catalogue of positions, not live train positions.": "颜色表示车站类别：主要车站（SNCF 目录为其提供公开代码）保留其铁路区段颜色，普通车站（无代码）则用同一区段颜色的淡化版本绘制。这些车站是静态位置目录，不是实时列车位置。",
   "Principal station ({segment})": "主要车站（{segment}）",
   "Local station ({segment})": "普通车站（{segment}）",
-  "Unnamed segment": "未命名区段"
+  "Unnamed segment": "未命名区段",
+  "Live transit vehicles and the French passenger-station network (SNCF) — the stations are a network, not live train positions": "实时公共交通车辆与法国客运车站网络（SNCF）——车站是一张网络，而非实时列车位置",
+  "Rail station": "铁路车站",
+  "Code {code}": "代码 {code}",
+  "UIC {uic}": "UIC {uic}",
+  "Segment {segment}": "路段 {segment}",
+  "Commune INSEE {insee}": "INSEE 市镇 {insee}",
+  "{lat}°, {lon}°": "{lat}°, {lon}°"
 }
