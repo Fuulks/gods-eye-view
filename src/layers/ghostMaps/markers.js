@@ -57,6 +57,19 @@ export const GHOST_MARKER_GLYPH_COLOR = '#b6f4ff';
 const PLATE_COLOR = 'rgba(4, 16, 22, 0.88)';
 
 /**
+ * A disc in the Cyber theme's accent, as a built-in SVG. It is the marker of
+ * last resort: when there is no canvas to draw on, a billboard still gets a
+ * valid image, so a placemark is never drawn as nothing at all.
+ */
+const GHOST_MARKER_FALLBACK_IMAGE =
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+      '<circle cx="16" cy="16" r="10" fill="#00d4ff" ' +
+      'stroke="#b6f4ff" stroke-width="1.5"/></svg>',
+  );
+
+/**
  * Words that name a kind. The FIRST rule that matches wins, so the more
  * specific kinds (a missile, a drone) come before the general ones (a strike).
  * Matching is on whole words or word starts, case-insensitively.
@@ -400,31 +413,169 @@ export function drawGhostMarker(ctx, kind, size = GHOST_MARKER_SIZE) {
 const spriteCache = new Map();
 
 /**
+ * The kinds whose sprite could not be drawn, so the failure is reported ONCE
+ * per kind and not again for every placemark of that kind.
+ */
+const spriteFailures = new Set();
+
+/**
+ * Whether a KML colour says nothing about the marker's colour.
+ *
+ * An ArcGIS export writes `ff000000` (opaque black) and `00000000`
+ * (transparent black) into the styles it emits. They are placeholders, not
+ * choices: a marker tinted with either is BLACK, and a black marker on a dark
+ * globe cannot be seen. The current products carry that black on their
+ * polygon and label styles rather than on the icon style, but a product that
+ * does put it on the icon must not be drawn black either. A near-white colour
+ * is the other placeholder (the plain white sprite these symbols replaced was
+ * tinted, so a white tint left the texture as it was drawn).
+ *
+ * @param {?number[]} rgba A KML colour as `[r, g, b, a]` in 0..1, or null.
+ * @returns {boolean} True when the colour carries no information.
+ */
+export function isNeutralTint(rgba) {
+  if (!Array.isArray(rgba) || rgba.length < 3) return true;
+  const [r, g, b] = rgba;
+  // The ArcGIS placeholder: opaque black.
+  if (r < 0.05 && g < 0.05 && b < 0.05) return true;
+  // The old plain-white sprite, kept for a KML that says white.
+  return r > 0.95 && g > 0.95 && b > 0.95;
+}
+
+/**
+ * The smallest alpha a tint may have and still show the symbol underneath.
+ * A KML colour may be almost transparent (`40xxxxxx` is a quarter opaque);
+ * multiplied into the texture that fades the symbol away, and an alpha of
+ * zero erases it. The floor keeps every marker readable.
+ */
+export const GHOST_MARKER_TINT_FLOOR = 0.35;
+
+/**
+ * The colour a marker is tinted with: the KML style's own colour when that
+ * colour says something, the product's colour otherwise.
+ *
+ * The tint is never black and never fainter than the floor, so a marker
+ * cannot be made invisible by the colour a KML happens to carry.
+ *
+ * @param {?number[]} iconColor The KML icon colour as `[r, g, b, a]`.
+ * @param {{r: number, g: number, b: number}} fallback The product colour.
+ * @returns {{r: number, g: number, b: number, a: number}} The tint.
+ */
+export function ghostMarkerTint(iconColor, fallback) {
+  const base = isNeutralTint(iconColor)
+    ? fallback
+    : { r: iconColor[0], g: iconColor[1], b: iconColor[2] };
+  const alpha = Array.isArray(iconColor) ? Number(iconColor[3]) : 1;
+  const usable = Number.isFinite(alpha) ? alpha : 1;
+  return {
+    r: base.r,
+    g: base.g,
+    b: base.b,
+    a: Math.max(GHOST_MARKER_TINT_FLOOR, Math.min(1, usable)),
+  };
+}
+
+/**
  * The shared sprite for a kind, as an image URL, drawn once.
  *
+ * The image is never null: where the symbol cannot be drawn, a plain disc in
+ * the given colour takes its place, and where there is no canvas at all, a
+ * built-in SVG does. A marker is always drawn.
+ *
  * @param {string} kind One of GHOST_MARKER_KINDS.
+ * @param {?{r: number, g: number, b: number, a: number}} [fallbackColor] The
+ *   colour of the plain disc that stands in for the symbol.
  * @param {Document} [documentRef]
- * @returns {string|null} A data URL, or null where there is no canvas.
+ * @returns {string} An image URL.
  */
-export function ghostMarkerImage(kind, documentRef = globalThis.document) {
+export function ghostMarkerImage(
+  kind,
+  fallbackColor = null,
+  documentRef = globalThis.document,
+) {
   const key = GHOST_MARKER_KINDS.includes(kind)
     ? kind
     : GHOST_MARKER_DEFAULT_KIND;
-  if (spriteCache.has(key)) return spriteCache.get(key);
+  // The symbol itself is the same for every product, so it is cached once per
+  // kind. The disc that stands in for it is coloured, so it is cached per kind
+  // AND per colour: two products must not share the first one's disc.
+  const cacheKey = fallbackColor
+    ? `${key}|${fallbackColor.r},${fallbackColor.g},${fallbackColor.b},${fallbackColor.a}`
+    : key;
+  if (spriteCache.has(cacheKey)) return spriteCache.get(cacheKey);
   let url = null;
   try {
     const canvas = documentRef.createElement('canvas');
     canvas.width = canvas.height = GHOST_MARKER_SIZE;
     drawGhostMarker(canvas.getContext('2d'), key, GHOST_MARKER_SIZE);
     url = canvas.toDataURL();
-  } catch {
+  } catch (error) {
     url = null;
+    // The failure is reported ONCE per kind, not once per placemark: a product
+    // holds up to 20 000 of them, and 20 000 identical warnings would bury the
+    // one line that says what went wrong.
+    if (!spriteFailures.has(key)) {
+      spriteFailures.add(key);
+      console.warn(
+        `[Data:GhostMaps] the ${key} marker could not be drawn; ` +
+          'a plain round marker is drawn instead:',
+        error,
+      );
+    }
   }
-  if (url) spriteCache.set(key, url);
-  return url;
+  // The failure is cached too, so a broken environment does not retry the
+  // canvas for every placemark of that kind.
+  spriteCache.set(
+    cacheKey,
+    url || ghostFallbackImage(fallbackColor, documentRef),
+  );
+  return spriteCache.get(cacheKey);
+}
+
+/**
+ * The marker drawn when the symbol cannot be: a plain disc in the given
+ * colour. It is drawn the same way the symbols are, so it shares their
+ * texture and their look, and it is never null either: a built-in SVG stands
+ * in when there is no canvas at all.
+ *
+ * The colour is the one `ghostMarkerTint` chose, so it is never black and
+ * never fainter than the floor: a fallback marker is as visible as a symbol.
+ *
+ * @param {?{r: number, g: number, b: number, a: number}} [color] The colour
+ *   to fill the disc with, in 0..1. The Cyber theme's accent by default.
+ * @param {Document} [documentRef]
+ * @returns {string} An image URL.
+ */
+export function ghostFallbackImage(
+  color = null,
+  documentRef = globalThis.document,
+) {
+  const fill = color
+    ? `rgba(${Math.round(color.r * 255)}, ${Math.round(color.g * 255)}, ` +
+      `${Math.round(color.b * 255)}, ${color.a})`
+    : GHOST_MARKER_FRAME_COLOR;
+  try {
+    const canvas = documentRef.createElement('canvas');
+    canvas.width = canvas.height = GHOST_MARKER_SIZE;
+    const ctx = canvas.getContext('2d');
+    const c = GHOST_MARKER_SIZE / 2;
+    ctx.beginPath();
+    ctx.arc(c, c, GHOST_MARKER_SIZE * 0.32, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = GHOST_MARKER_SIZE * 0.045;
+    ctx.strokeStyle = GHOST_MARKER_GLYPH_COLOR;
+    ctx.stroke();
+    const url = canvas.toDataURL();
+    if (url) return url;
+  } catch {
+    /* No canvas: the built-in SVG below is the last resort. */
+  }
+  return GHOST_MARKER_FALLBACK_IMAGE;
 }
 
 /** Forget the drawn sprites (tests, and a document that is going away). */
 export function clearGhostMarkerCache() {
   spriteCache.clear();
+  spriteFailures.clear();
 }

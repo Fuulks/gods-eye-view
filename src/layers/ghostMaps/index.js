@@ -18,6 +18,7 @@ import {
   GHOST_MARKER_DISPLAY_SCALE,
   ghostEventKind,
   ghostMarkerImage,
+  ghostMarkerTint,
 } from './markers.js';
 import { fieldLabel, parseDescriptionFields, wrapCardText } from './records.js';
 export * from './catalog.js';
@@ -83,6 +84,11 @@ function writeStoredSelection(storage, selected) {
     /* private window or blocked storage: the selection lasts this session */
   }
 }
+
+const productRgb = (css) => {
+  const parsed = Cesium.Color.fromCssColorString(css);
+  return { r: parsed.red, g: parsed.green, b: parsed.blue };
+};
 
 const cesiumColor = (rgba, fallback, alpha) =>
   rgba
@@ -203,7 +209,11 @@ export function createGhostMapsLayer({
               id,
               position,
               billboard: {
-                // One shared sprite per kind of event (see markers.js).
+                // One shared sprite per kind of event (see markers.js). The
+                // symbol carries its own colour, so nothing tints it: a
+                // marker cannot be made invisible by the colour a KML happens
+                // to carry. The tint is only used for the plain disc that
+                // stands in when the symbol cannot be drawn at all.
                 image: ghostMarkerImage(
                   ghostEventKind({
                     folder: feature.folder,
@@ -211,6 +221,7 @@ export function createGhostMapsLayer({
                     iconHref: style.iconHref,
                     description: feature.description,
                   }),
+                  ghostMarkerTint(style.iconColor, productRgb(color)),
                 ),
                 scale:
                   Math.min(1.5, Math.max(0.6, style.iconScale ?? 1)) *

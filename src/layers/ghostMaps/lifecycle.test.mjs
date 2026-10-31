@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as Cesium from 'cesium';
-import { GHOST_MARKER_DISPLAY_SCALE } from './markers.js';
+import {
+  GHOST_MARKER_DISPLAY_SCALE,
+  GHOST_MARKER_TINT_FLOOR,
+  clearGhostMarkerCache,
+  ghostMarkerTint,
+  isNeutralTint,
+} from './markers.js';
 import { createGhostMapsLayer } from './index.js';
 
 function element(localName, children = [], value = '', attributes = {}) {
@@ -177,4 +183,52 @@ test('entity construction failure leaves nothing mounted and reports the error',
   assert.equal(created.length, 0);
   assert.equal(mounted.size, 0);
   assert.equal(layer.getStats().error, 'fixture entity failure');
+});
+
+test('a placemark always has an image, and it is never tinted out of sight', async (t) => {
+  clearGhostMarkerCache();
+  const { layer, viewer, mounted } = fixture(t);
+  await layer.update(viewer);
+  const [dataSource] = [...mounted];
+  const [entity] = dataSource.entities.values;
+  // The marker must have an image: a null image is a placemark drawn as
+  // nothing at all, which is what the user sees when the sprites are missing.
+  const image = entity.billboard.image?.getValue
+    ? entity.billboard.image.getValue()
+    : entity.billboard.image;
+  assert.ok(image, 'the billboard has an image');
+  assert.equal(typeof image, 'string');
+  assert.match(image, /^data:image\//);
+  // And it must not be tinted: a tint is multiplied into the texture, so a
+  // black or transparent tint erases the symbol on a dark globe.
+  assert.equal(entity.billboard.color, undefined);
+  clearGhostMarkerCache();
+});
+
+test('the ArcGIS icon colour, which is always black, does not tint the marker black', () => {
+  // The black an ArcGIS export writes into its styles (ff000000) is a
+  // placeholder that means "use the product colour": a marker tinted with it
+  // would be black, and a black marker on a dark globe cannot be seen.
+  const product = { r: 200 / 255, g: 1, b: 0 };
+  const tint = ghostMarkerTint([0, 0, 0, 1], product);
+  assert.equal(isNeutralTint([0, 0, 0, 1]), true);
+  assert.deepEqual(tint, { r: product.r, g: product.g, b: product.b, a: 1 });
+  assert.ok(
+    tint.r + tint.g + tint.b > 0,
+    'the marker is not black on a dark globe',
+  );
+});
+
+test('a faint KML colour still leaves the marker visible', () => {
+  // 40xxxxxx is a quarter opaque. Multiplied into the texture it would fade
+  // the symbol away, so the alpha has a floor.
+  const product = { r: 0, g: 0, b: 1 };
+  const tint = ghostMarkerTint([0, 0, 1, 0.25], product);
+  assert.equal(tint.a, GHOST_MARKER_TINT_FLOOR);
+  assert.ok(tint.a >= 0.35, 'the marker is not faded away');
+  // A fully transparent colour would erase it outright.
+  assert.equal(
+    ghostMarkerTint([0, 0, 1, 0], product).a,
+    GHOST_MARKER_TINT_FLOOR,
+  );
 });
