@@ -135,7 +135,7 @@ function fixture(t, { beforeFileReturns, onCreateUrl } = {}) {
   return { layer, viewer, mounted, created, revoked };
 }
 
-test('cancelling a file read does not allocate packed-image URLs', async (t) => {
+test('cancelling a file read mounts nothing and allocates no URLs', async (t) => {
   const { layer, viewer, mounted, created, revoked } = fixture(t, {
     beforeFileReturns: (layer) => queueMicrotask(() => layer.disable()),
   });
@@ -145,36 +145,40 @@ test('cancelling a file read does not allocate packed-image URLs', async (t) => 
   assert.equal(mounted.size, 0);
 });
 
-test('cancellation during parsing releases every packed-image URL', async (t) => {
-  const { layer, viewer, mounted, created, revoked } = fixture(t, {
-    onCreateUrl: (layer) => layer.disable(),
-  });
+test('a load never decodes the packed icons: no object URL is created, kept or revoked', async (t) => {
+  const { layer, viewer, mounted, created, revoked } = fixture(t);
   await layer.update(viewer);
-  assert.equal(created.length, 1);
-  assert.deepEqual(revoked, created);
+  assert.equal(created.length, 0);
+  assert.equal(mounted.size, 1);
+  assert.equal(layer.getStats().count, 1);
+  layer.disable();
+  assert.equal(created.length, 0);
+  assert.equal(revoked.length, 0);
   assert.equal(mounted.size, 0);
 });
 
-test('entity construction failure releases parsed image URLs', async (t) => {
-  const { layer, viewer, mounted, created, revoked } = fixture(t);
+test('a placemark is drawn with the product colour as a tint on the shared sprite', async (t) => {
+  const { layer, viewer, mounted } = fixture(t);
+  await layer.update(viewer);
+  const [dataSource] = [...mounted];
+  const [entity] = dataSource.entities.values;
+  const tint = entity.billboard.color.getValue();
+  // The fixture's style carries no colour, so the product colour is used.
+  assert.ok(tint.alpha > 0);
+  assert.notDeepEqual(
+    [tint.red, tint.green, tint.blue],
+    [1, 1, 1],
+    'a white tint would draw a white marker',
+  );
+});
+
+test('entity construction failure leaves nothing mounted and reports the error', async (t) => {
+  const { layer, viewer, mounted, created } = fixture(t);
   t.mock.method(Cesium.EntityCollection.prototype, 'add', () => {
     throw new Error('fixture entity failure');
   });
   await layer.update(viewer);
-  assert.equal(created.length, 1);
-  assert.deepEqual(revoked, created);
+  assert.equal(created.length, 0);
   assert.equal(mounted.size, 0);
   assert.equal(layer.getStats().error, 'fixture entity failure');
-});
-
-test('successful load keeps icons until the product is disabled', async (t) => {
-  const { layer, viewer, mounted, created, revoked } = fixture(t);
-  await layer.update(viewer);
-  assert.equal(created.length, 1);
-  assert.equal(revoked.length, 0);
-  assert.equal(mounted.size, 1);
-  assert.equal(layer.getStats().count, 1);
-  layer.disable();
-  assert.deepEqual(revoked, created);
-  assert.equal(mounted.size, 0);
 });

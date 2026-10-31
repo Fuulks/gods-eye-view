@@ -46,6 +46,9 @@ function readStyle(styleEl, resolveImage) {
   if (icon) {
     const href = text(firstChild(firstChild(icon, 'Icon'), 'href'));
     style.icon = href ? resolveImage(href) : null;
+    // The icon's name picks the marker SHAPE (see markers.js); the packed
+    // image itself is not needed to draw it.
+    style.iconHref = href || null;
     style.iconScale = number(firstChild(icon, 'scale'), 1);
     style.iconColor = kmlColor(text(firstChild(icon, 'color')));
   }

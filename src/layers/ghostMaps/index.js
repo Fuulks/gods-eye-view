@@ -1,11 +1,9 @@
 import * as Cesium from 'cesium';
 import {
   decodeXml,
-  kmzImageResolver,
   kmzMainDocument,
   parseXml,
   readZipEntries,
-  resolveKmzPath,
 } from '../../data/geoFileImport.js';
 import {
   formatNumber,
@@ -16,6 +14,7 @@ import {
 } from '../../i18n/index.js';
 import { createHorizonCull } from '../streetLevel/view.js';
 import { readGhostMapsKml } from './kml.js';
+import { ghostMarkerImage, ghostMarkerKind, isNeutralTint } from './markers.js';
 import { fieldLabel, parseDescriptionFields, wrapCardText } from './records.js';
 export * from './catalog.js';
 export * from './records.js';
@@ -27,7 +26,6 @@ export const GHOSTMAPS_OVERLAY_SOURCE_ID = 's2-ghostmaps';
 const PICK_PREFIX = 'ghostmaps:';
 const STORAGE_KEY = 'gev.ghostmaps.products';
 const ACCENT = '#c8ff00';
-const MAX_ICON_BYTES = 512 * 1024;
 const CARD_HOST_OPTIONS = Object.freeze({
   cohortLimit: 1,
   collisionCapacity: 1,
@@ -82,30 +80,6 @@ function writeStoredSelection(storage, selected) {
   }
 }
 
-/** A round marker for placemarks whose icon is missing or remote. */
-const markerCache = new Map();
-function markerImage(color) {
-  if (markerCache.has(color)) return markerCache.get(color);
-  let url = null;
-  try {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = 20;
-    const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-    ctx.arc(10, 10, 7, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-    ctx.stroke();
-    url = canvas.toDataURL();
-  } catch {
-    url = null;
-  }
-  markerCache.set(color, url);
-  return url;
-}
-
 const cesiumColor = (rgba, fallback, alpha) =>
   rgba
     ? new Cesium.Color(rgba[0], rgba[1], rgba[2], alpha ?? rgba[3])
@@ -154,7 +128,7 @@ export function createGhostMapsLayer({
   let _selectedLink = null;
   let _lifetime = new AbortController();
   let _selection = readStoredSelection(storage);
-  /** productId → {version, dataSource, urls, count, features} */
+  /** productId → {version, dataSource, features, pins} */
   const _loaded = new Map();
   /** productId → in-flight version */
   const _loading = new Map();
@@ -188,7 +162,6 @@ export function createGhostMapsLayer({
     if (!item) return;
     _loaded.delete(id);
     _viewer?.dataSources?.remove(item.dataSource, true);
-    item.urls.forEach((url) => URL.revokeObjectURL(url));
     if (_selectedKey?.startsWith(`${id}:`)) clearSelection();
   }
 
@@ -200,22 +173,9 @@ export function createGhostMapsLayer({
     signal.throwIfAborted();
     const main = kmzMainDocument(entries);
     if (!main) throw new Error(msg('That KMZ holds no KML document.'));
-    const urls = [];
-    const resolvePacked = kmzImageResolver(entries, main, (url) =>
-      urls.push(url),
-    );
-    // Icons only: ArcGIS exports also pack multi-megabyte photo attachments,
-    // which fall back to the product marker instead of being decoded.
-    const resolveImage = (href) => {
-      const path = resolveKmzPath(href, main, entries);
-      return path && entries.get(path).length <= MAX_ICON_BYTES
-        ? resolvePacked(href)
-        : null;
-    };
     try {
       const parsed = readGhostMapsKml(
         parseXml(decodeXml(entries.get(main)), 'KML'),
-        resolveImage,
       );
       entries.clear();
       signal.throwIfAborted();
@@ -239,15 +199,15 @@ export function createGhostMapsLayer({
               id,
               position,
               billboard: {
-                image: style.icon || markerImage(color),
+                // One shared flat sprite per shape; the colour is a tint.
+                image: ghostMarkerImage(ghostMarkerKind(style.iconHref)),
                 scale: Math.min(
                   1.5,
                   Math.max(0.35, (style.iconScale ?? 1) * 0.7),
                 ),
-                color:
-                  style.icon && style.iconColor
-                    ? cesiumColor(style.iconColor)
-                    : undefined,
+                color: isNeutralTint(style.iconColor)
+                  ? Cesium.Color.fromCssColorString(color)
+                  : cesiumColor(style.iconColor),
                 heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
                 verticalOrigin: Cesium.VerticalOrigin.CENTER,
                 // Ground-clamped icons would sink into terrain and 3D tiles; the
@@ -319,10 +279,11 @@ export function createGhostMapsLayer({
         });
       });
       dataSource.entities.resumeEvents();
-      return { version: product.version, dataSource, urls, features, pins };
-    } catch (error) {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-      throw error;
+      return { version: product.version, dataSource, features, pins };
+    } finally {
+      // The archive's bytes are not needed once the features are built, or
+      // when building them failed.
+      entries.clear();
     }
   }
 
@@ -345,7 +306,6 @@ export function createGhostMapsLayer({
         try {
           const next = await load(product, signal);
           if (signal.aborted || !_enabled) {
-            next.urls.forEach((url) => URL.revokeObjectURL(url));
             return;
           }
           // Cull before the first frame so far-side pins never flash.
@@ -549,7 +509,7 @@ export function createGhostMapsLayer({
   const layer = {
     id: GHOSTMAPS_LAYER_ID,
     name: 'S2 GhostMaps',
-    icon: '👻',
+    icon: '◬',
     source: 'S2 Underground',
     // Pushes arrive within seconds over the event stream; this interval is
     // the backstop if the stream is down.
