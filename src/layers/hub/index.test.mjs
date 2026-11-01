@@ -439,3 +439,22 @@ test(
     }
   },
 );
+
+test(
+  'clicks are ignored while another tool owns the pointer, and work again once it is released',
+  TIMEOUT,
+  async () => {
+    const h = harness();
+    await h.layer.update();
+    h.pick('hub-station:st-1');
+    const lease = claimPointer('draw');
+    try {
+      h.click();
+      assert.equal(h.body.children.length, 0);
+    } finally {
+      releasePointer(lease);
+    }
+    h.click();
+    assert.equal(h.body.children.length, 1);
+  },
+);
