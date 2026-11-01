@@ -44,6 +44,12 @@ const AIRCRAFT_FIELDS = {
 
 const layers = [
   {
+    id: 'hub-stations',
+    aliases: ['oneintos stations', 'station sensors', 'hub stations'],
+    context: false,
+    noQuery: 'OneIntOS station readings; use the layer card',
+  },
+  {
     id: 'gnss-integrity',
     aliases: [
       'gnss integrity',
