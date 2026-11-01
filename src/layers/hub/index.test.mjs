@@ -388,3 +388,35 @@ test(
     );
   },
 );
+
+test(
+  'analyst records say how current each station is and never claim current when the hub is gone',
+  TIMEOUT,
+  async () => {
+    const h = harness();
+    await h.layer.update();
+    let [rec] = h.layer.getAnalystRecords();
+    assert.equal(rec.freshness, 'fresh');
+    assert.equal(rec.current, true);
+    assert.equal(rec.lastIngestAt, '2026-11-01T10:00:00Z');
+    h.state.fail = true;
+    h.advance(13000);
+    await h.layer.update();
+    [rec] = h.layer.getAnalystRecords();
+    assert.equal(rec.current, false);
+    assert.notEqual(rec.freshness, 'fresh');
+    assert.ok(rec.ageS >= 13);
+  },
+);
+
+test(
+  'analyst records for an older payload without freshness are unknown, not current',
+  TIMEOUT,
+  async () => {
+    const h = harness({ rows: [row({ freshness: 'unknown', ageS: null })] });
+    await h.layer.update();
+    const [rec] = h.layer.getAnalystRecords();
+    assert.equal(rec.freshness, 'unknown');
+    assert.equal(rec.current, false);
+  },
+);

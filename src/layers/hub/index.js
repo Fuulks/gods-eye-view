@@ -344,7 +344,10 @@ export function createHubStationsLayer({
       const limit = Number.isFinite(maxCount)
         ? Math.max(1, Math.floor(maxCount))
         : 500;
-      return _rows.slice(0, limit).map(mapAnalystRecord);
+      const nowMs = now();
+      return _rows
+        .slice(0, limit)
+        .map((row) => mapAnalystRecord(row, viewOf(row, nowMs)));
     },
 
     getStats() {
