@@ -44,12 +44,6 @@ const AIRCRAFT_FIELDS = {
 
 const layers = [
   {
-    id: 'hub-stations',
-    aliases: ['oneintos stations', 'station sensors', 'hub stations'],
-    context: false,
-    noQuery: 'OneIntOS station readings; use the layer card',
-  },
-  {
     id: 'gnss-integrity',
     aliases: [
       'gnss integrity',
@@ -430,6 +424,7 @@ const layers = [
 export const VOICE_OFF_LAYERS = Object.freeze({
   'bhote-koshi-2026': 'scene-driven event layer (control_scene)',
   'bhote-koshi-locator': 'scene-driven event layer (control_scene)',
+  'hub-stations': 'local OneIntOS data; voice is out of scope (ADR 0002)',
 });
 
 const TYPE_NAMES = Object.freeze({

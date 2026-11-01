@@ -96,7 +96,12 @@ export function hubProxy({
     if (query === null) return json(res, 422, { error: 'invalid_query' });
     const isStream = STREAM_ROUTE.test(url.pathname);
     if (isStream && streams >= MAX_HUB_STREAMS)
-      return json(res, 429, { error: 'too_many_streams' }, { 'Retry-After': '5' });
+      return json(
+        res,
+        429,
+        { error: 'too_many_streams' },
+        { 'Retry-After': '5' },
+      );
 
     const abort = new AbortController();
     const limitMs = isStream ? STREAM_IDLE_MS : REQUEST_TIMEOUT_MS;
@@ -142,7 +147,8 @@ export function hubProxy({
       if (![200, 404, 422, 429, 503].includes(upstream.status))
         return json(res, 502, { error: 'hub_unavailable' });
       const body = await readCapped(upstream, MAX_JSON_BYTES);
-      if (body === null) return json(res, 502, { error: 'hub_response_too_large' });
+      if (body === null)
+        return json(res, 502, { error: 'hub_response_too_large' });
       if (res.destroyed) return undefined;
       res.writeHead(upstream.status, {
         'Content-Type': 'application/json',

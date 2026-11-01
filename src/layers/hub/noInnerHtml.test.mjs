@@ -10,7 +10,10 @@ import { fileURLToPath } from 'node:url';
  * API. The scan covers the layer family, its application wiring, the source
  * and the server proxy, and fails if any file contains one of these.
  */
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+const ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  '../../..',
+);
 const BANNED = [
   /\binnerHTML\b/,
   /\bouterHTML\b/,
@@ -35,7 +38,11 @@ function hubFiles() {
   const own = readdirSync(dir)
     .filter((name) => name.endsWith('.js'))
     .map((name) => path.join(dir, name));
-  return [...own, path.join(ROOT, 'src/app/layers/hubStations.js'), path.join(ROOT, 'server/providers/hub.js')];
+  return [
+    ...own,
+    path.join(ROOT, 'src/app/layers/hubStations.js'),
+    path.join(ROOT, 'server/providers/hub.js'),
+  ];
 }
 
 test('the scan covers the whole hub family', () => {
@@ -70,6 +77,10 @@ test('the scanner flags every banned API (so a clean result means something)', (
 
 test('no hub file uses an HTML-injecting API', () => {
   for (const file of hubFiles()) {
-    assert.deepEqual(bannedUses(readFileSync(file, 'utf8')), [], path.relative(ROOT, file));
+    assert.deepEqual(
+      bannedUses(readFileSync(file, 'utf8')),
+      [],
+      path.relative(ROOT, file),
+    );
   }
 });

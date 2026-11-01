@@ -24,7 +24,10 @@ function finite(value) {
 
 function normalizeReading(raw) {
   if (!raw || typeof raw !== 'object') return null;
-  const sensorId = typeof raw.sensor_id === 'string' && ID_PATTERN.test(raw.sensor_id) ? raw.sensor_id : null;
+  const sensorId =
+    typeof raw.sensor_id === 'string' && ID_PATTERN.test(raw.sensor_id)
+      ? raw.sensor_id
+      : null;
   const metric = cleanText(raw.metric, 32);
   const value = finite(raw.value);
   if (!sensorId || !metric || value === null) return null;
@@ -43,21 +46,42 @@ function normalizeReading(raw) {
  */
 export function normalizeHubStations(collection) {
   if (!collection || typeof collection !== 'object') return null;
-  if (collection.type !== 'FeatureCollection' || !Array.isArray(collection.features)) return null;
-  const origin = HUB_ORIGINS.includes(collection.origin) ? collection.origin : null;
+  if (
+    collection.type !== 'FeatureCollection' ||
+    !Array.isArray(collection.features)
+  )
+    return null;
+  const origin = HUB_ORIGINS.includes(collection.origin)
+    ? collection.origin
+    : null;
   if (!origin) return null; // a collection that does not say where its data comes from is not shown
   const rows = [];
-  let dropped = Number.isFinite(collection.dropped_invalid) ? Math.max(0, Math.floor(collection.dropped_invalid)) : 0;
+  let dropped = Number.isFinite(collection.dropped_invalid)
+    ? Math.max(0, Math.floor(collection.dropped_invalid))
+    : 0;
   for (const feature of collection.features.slice(0, HUB_MAX_FEATURES)) {
-    const id = typeof feature?.id === 'string' && ID_PATTERN.test(feature.id) ? feature.id : null;
-    const coords = feature?.geometry?.type === 'Point' ? feature.geometry.coordinates : null;
+    const id =
+      typeof feature?.id === 'string' && ID_PATTERN.test(feature.id)
+        ? feature.id
+        : null;
+    const coords =
+      feature?.geometry?.type === 'Point' ? feature.geometry.coordinates : null;
     const lon = Array.isArray(coords) ? finite(coords[0]) : null;
     const lat = Array.isArray(coords) ? finite(coords[1]) : null;
-    if (!id || lon === null || lat === null || Math.abs(lon) > 180 || Math.abs(lat) > 90) {
+    if (
+      !id ||
+      lon === null ||
+      lat === null ||
+      Math.abs(lon) > 180 ||
+      Math.abs(lat) > 90
+    ) {
       dropped += 1; // includes stations with no configured position: nothing to draw
       continue;
     }
-    const props = feature.properties && typeof feature.properties === 'object' ? feature.properties : {};
+    const props =
+      feature.properties && typeof feature.properties === 'object'
+        ? feature.properties
+        : {};
     const readings = (Array.isArray(props.readings) ? props.readings : [])
       .slice(0, HUB_MAX_READINGS)
       .map(normalizeReading)

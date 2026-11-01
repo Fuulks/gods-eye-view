@@ -84,7 +84,9 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
         const overlayEntries = [];
         for (const row of rows) {
           const position = Cesium.Cartesian3.fromDegrees(row.lon, row.lat);
-          const color = Cesium.Color.fromCssColorString(originColor(row.origin));
+          const color = Cesium.Color.fromCssColorString(
+            originColor(row.origin),
+          );
           // The position is deliberately approximate; the ring shows how approximate.
           const radius = Math.max(500, (row.precisionM ?? 10000) / 2);
           entities.push(
@@ -101,7 +103,9 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
               ellipse: {
                 semiMajorAxis: radius,
                 semiMinorAxis: radius,
-                material: new Cesium.ColorMaterialProperty(color.withAlpha(0.12)),
+                material: new Cesium.ColorMaterialProperty(
+                  color.withAlpha(0.12),
+                ),
                 outline: true,
                 outlineColor: color.withAlpha(0.7),
                 heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
@@ -161,7 +165,9 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
 
     getAnalystRecords(maxCount = 500) {
       if (!_enabled) return [];
-      const limit = Number.isFinite(maxCount) ? Math.max(1, Math.floor(maxCount)) : 500;
+      const limit = Number.isFinite(maxCount)
+        ? Math.max(1, Math.floor(maxCount))
+        : 500;
       return _rows.slice(0, limit).map(mapAnalystRecord);
     },
 
