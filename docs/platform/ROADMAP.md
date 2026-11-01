@@ -1,7 +1,8 @@
 # God's Eye View data platform: roadmap
 
-Status: **draft for review.** Nothing here is built. The schema is in
-[`schema.sql`](schema.sql) and the vocabulary in [`ONTOLOGY.md`](ONTOLOGY.md).
+Status: **phase 0 is built**; the rest is planned. The schema is in
+[`db/migrations/`](../../db/migrations), the vocabulary in
+[`ONTOLOGY.md`](ONTOLOGY.md), and running it in [`OPERATIONS.md`](OPERATIONS.md).
 
 ## Goal
 
@@ -28,17 +29,19 @@ multi-tenant service. Where an enterprise feature would only matter at scale
    history; heavy analysis never runs in the render path.
 6. **Few feeds, trusted.** Add a source when it answers a question you have,
    not because it exists.
-7. **Private by construction.** Places, notes and documents are `private` or
-   `personal` and never leave through a share link or export.
+7. **Private by construction.** Places, notes, documents and people are
+   `private` or `personal` and never leave through a share link or export.
+8. **Replayable.** Because history is append-only and two-axis, any past
+   picture can be rebuilt as it was known then (`objects_as_of`).
 
 ## Where it fits in the codebase
 
-| Today | Becomes |
-|---|---|
-| `server/providers/*` proxies, one per feed | Connectors: the same fetch, plus a normaliser that emits objects and observations |
-| `getAnalystRecords()` on each layer (22 files) | The shape of the normaliser's output, so the existing mapping work is reused |
-| Layers fetch their own feed | Layers read `object_current` and `observation` through one query API (phase 2); the direct fetch stays as a fallback while the database is down |
-| `changelog.d`, `docs/` | Unchanged; the platform gets its own `db/` and `server/platform/` |
+| Today                                          | Becomes                                                                                                                                         |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/providers/*` proxies, one per feed     | Connectors: the same fetch, plus a normaliser that emits objects and observations                                                               |
+| `getAnalystRecords()` on each layer (22 files) | The shape of the normaliser's output, so the existing mapping work is reused                                                                    |
+| Layers fetch their own feed                    | Layers read `object_current` and `observation` through one query API (phase 2); the direct fetch stays as a fallback while the database is down |
+| `changelog.d`, `docs/`                         | Unchanged; the platform gets its own `db/` and `server/platform/`                                                                               |
 
 New code lives behind a boundary: `server/platform/` (connectors, resolver,
 rules, API) and `db/migrations/`. The browser never talks to Postgres; it
@@ -50,10 +53,10 @@ allowed-hosts rules the key-setup routes already use.
 Each phase ships something usable and has an exit test. Sizes are rough, for
 one person working part time.
 
-### Phase 0: foundation (about 1 week)
+### Phase 0: foundation (built)
 
-- Add the `postgis` service to `compose.yaml`, bound to loopback, with a named
-  volume and `GEV_DATABASE_URL` in `.env`.
+- Add the `postgis` service to `compose.yaml` (profile `platform`, bound to
+  loopback, named volume) and `GEV_DATABASE_URL` in `.env`.
 - Migration runner: numbered `db/migrations/*.sql`, applied in order, recorded
   in a `schema_migration` table. Plain SQL, no ORM.
 - Split `schema.sql` into the first migrations; seed the ontology.
@@ -84,11 +87,14 @@ no-ops; a corrected upstream value creates a superseding state, not an update.
   `object_current`.
 - Object page: properties, links, timeline of states, sources and licences.
 - Time slider for the ported layers, reading history instead of the live feed.
+- Replay: pick a past moment (and what was known then) and the globe, the
+  object pages and the alert list show that picture.
 - Attribution shown from the `source` table, replacing the hand-kept credits
   for these layers.
 
 **Exit:** the three layers look and behave as before, plus a working "as of"
-time control and an object page.
+time control, a replay of a past incident from stored data, and an object
+page.
 
 ### Phase 3: places and watch zones (about 1 week)
 
@@ -129,6 +135,8 @@ states and a visible provenance trail; a wrong merge can be undone.
 
 - Import: CSV, GeoJSON, KML (the existing import code is the start), and
   documents with text extraction.
+- People: the `person` type with required basis, retention and erasure,
+  agreement documents linked to each person, and an audit view of every read.
 - Document mentions linked to objects; full-text search.
 - Investigation boards: pinned objects, notes, a status, and the question you
   are trying to settle.
@@ -154,16 +162,16 @@ checked answer with citations.
 
 ## Risks
 
-| Risk | Mitigation |
-|---|---|
-| The ontology is wrong and every connector bakes it in | Start with eight types; change types as data until phase 5; keep `props_schema` strict so drift shows up in tests |
-| Open data is patchy, late or duplicated | Provenance, confidence and the resolver; show data age everywhere |
-| Observation volume (vessels, aircraft) fills the disk | Monthly partitions, retention policy, thinning on write |
-| Alert fatigue | Severity thresholds, cooldowns, a weekly review of which rules fired and were never opened |
-| Licence terms limit storage or redistribution | `source.licence` and `terms_note` are required; check them before a connector is enabled |
-| Privacy and legal exposure | No `person` object type; places and notes are `private`; GDPR applies to anything about people in the EU, so this scope stays out of it |
-| One person, long project | Each phase has a usable exit; stop after any of them and the system still works |
-| Home-server loss | Phase 0 backup with a tested restore, kept on a second disk and off-site |
+| Risk                                                  | Mitigation                                                                                                                                                                                   |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The ontology is wrong and every connector bakes it in | Start with eight types; change types as data until phase 5; keep `props_schema` strict so drift shows up in tests                                                                            |
+| Open data is patchy, late or duplicated               | Provenance, confidence and the resolver; show data age everywhere                                                                                                                            |
+| Observation volume (vessels, aircraft) fills the disk | Monthly partitions, retention policy, thinning on write                                                                                                                                      |
+| Alert fatigue                                         | Severity thresholds, cooldowns, a weekly review of which rules fired and were never opened                                                                                                   |
+| Licence terms limit storage or redistribution         | `source.licence` and `terms_note` are required; check them before a connector is enabled                                                                                                     |
+| Privacy and legal exposure                            | `person` records need a stated basis, are private, audited, retention-dated and erasable; keep the operator agreement on file as a document; GDPR applies to anything about people in the EU |
+| One person, long project                              | Each phase has a usable exit; stop after any of them and the system still works                                                                                                              |
+| Home-server loss                                      | Phase 0 backup with a tested restore, kept on a second disk and off-site                                                                                                                     |
 
 ## Decisions needed
 
