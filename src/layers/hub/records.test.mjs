@@ -333,3 +333,22 @@ test(
     assert.ok(!/[\u0000-\u001f]/.test(q.status));
   },
 );
+
+test(
+  'a repeated station id keeps the first station and counts the rest as dropped',
+  { timeout: 10000 },
+  () => {
+    const result = normalizeHubStations(
+      collection([
+        feature({ id: 'a' }),
+        feature({ id: 'b' }),
+        feature({ id: 'b' }),
+      ]),
+    );
+    assert.deepEqual(
+      result.rows.map((r) => r.id),
+      ['a', 'b'],
+    );
+    assert.equal(result.dropped, 1);
+  },
+);

@@ -113,6 +113,7 @@ export function normalizeHubStations(collection) {
   if (!origin) return null; // a collection that does not say where its data comes from is not shown
   const layerFreshness = normalizeLayerFreshness(collection.freshness);
   const rows = [];
+  const seen = new Set();
   let dropped = Number.isFinite(collection.dropped_invalid)
     ? Math.max(0, Math.floor(collection.dropped_invalid))
     : 0;
@@ -135,6 +136,11 @@ export function normalizeHubStations(collection) {
       dropped += 1; // includes stations with no configured position: nothing to draw
       continue;
     }
+    if (seen.has(id)) {
+      dropped += 1; // a repeated id would make two entities with one identity
+      continue;
+    }
+    seen.add(id);
     const props =
       feature.properties && typeof feature.properties === 'object'
         ? feature.properties

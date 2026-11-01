@@ -345,3 +345,27 @@ test(
     assert.ok(alpha() < 0.7, 'offline is dimmer still');
   },
 );
+
+test(
+  'a poll with repeated ids cannot leave the map out of step with the rows',
+  TIMEOUT,
+  async () => {
+    const h = harness();
+    await h.layer.update();
+    h.state.rows = [row({ id: 'b' }), row({ id: 'c' }), row({ id: 'c' })];
+    assert.equal(await h.layer.update(), true, 'the poll succeeds');
+    assert.equal(h.layer.getStats().error, null);
+    assert.equal(h.layer.getStats().count, 2);
+    assert.deepEqual(
+      h.layer.getAnalystRecords().map((r) => r.id),
+      ['b', 'c'],
+    );
+    const ids = h.calls.ds.entities.values.map((e) => e.id).sort();
+    assert.deepEqual(ids, ['hub-station:b', 'hub-station:c']);
+    assert.equal(
+      h.calls.entries.at(-1).length,
+      2,
+      'every drawn station is labelled',
+    );
+  },
+);

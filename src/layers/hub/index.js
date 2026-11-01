@@ -240,46 +240,61 @@ export function createHubStationsLayer({
         if (request.signal.aborted || _request !== request || !_enabled)
           return false;
         const receivedAt = now();
-        _dataSource.entities.removeAll();
-        _entities.clear();
-        _positions.clear();
+        // Build everything first and swap it in at the end, so a failure part-way cannot leave the map and the
+        // rows out of step. Repeated ids are ignored after the first.
+        const unique = [];
+        const built = new Map();
+        const positions = new Map();
         for (const row of rows) {
+          if (built.has(row.id)) continue;
           const position = Cesium.Cartesian3.fromDegrees(row.lon, row.lat);
           const color = Cesium.Color.fromCssColorString(
             originColor(row.origin),
           );
           // The position is deliberately approximate; the ring shows how approximate.
           const radius = Math.max(500, (row.precisionM ?? 10000) / 2);
-          const entity = new Cesium.Entity({
-            id: `${ENTITY_PREFIX}${row.id}`,
-            position,
-            point: {
-              pixelSize: 9,
-              color,
-              outlineColor: Cesium.Color.BLACK,
-              outlineWidth: 1,
-              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-            },
-            ellipse: {
-              semiMajorAxis: radius,
-              semiMinorAxis: radius,
-              material: new Cesium.ColorMaterialProperty(color.withAlpha(0.12)),
-              outline: true,
-              outlineColor: color.withAlpha(0.7),
-              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-            },
-            properties: {
-              stationId: row.id,
-              origin: row.origin,
-              approximate: true,
-            },
-          });
-          _dataSource.entities.add(entity);
-          _entities.set(row.id, entity);
-          _positions.set(row.id, position);
+          built.set(
+            row.id,
+            new Cesium.Entity({
+              id: `${ENTITY_PREFIX}${row.id}`,
+              position,
+              point: {
+                pixelSize: 9,
+                color,
+                outlineColor: Cesium.Color.BLACK,
+                outlineWidth: 1,
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+              },
+              ellipse: {
+                semiMajorAxis: radius,
+                semiMinorAxis: radius,
+                material: new Cesium.ColorMaterialProperty(
+                  color.withAlpha(0.12),
+                ),
+                outline: true,
+                outlineColor: color.withAlpha(0.7),
+                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+              },
+              properties: {
+                stationId: row.id,
+                origin: row.origin,
+                approximate: true,
+              },
+            }),
+          );
+          positions.set(row.id, position);
+          unique.push(row);
         }
-        _rows = rows;
-        _count = rows.length;
+        _dataSource.entities.removeAll();
+        _entities.clear();
+        _positions.clear();
+        for (const [id, entity] of built) {
+          _dataSource.entities.add(entity);
+          _entities.set(id, entity);
+          _positions.set(id, positions.get(id));
+        }
+        _rows = unique;
+        _count = unique.length;
         _origin = origin;
         _receivedAtMs = receivedAt;
         _lastSuccessMs = receivedAt;
