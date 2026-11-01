@@ -26,7 +26,7 @@ Each station says how recently the OneIntOS Station API took in data, measured o
 - **Effective age** is the hub's `age_s` plus the monotonic time since that answer arrived, so a station keeps ageing between polls. The state shown is the worse of the hub's status and the age-derived one.
 - **Polling** stays every 5 s, also when the hub is down; the last stations stay drawn.
 - **NOT CURRENT.** After 12 s without a successful poll the layer says so (layer text `NOT CURRENT · last poll HH:MM:SSZ`, labels `NOT CURRENT · <age>`); a "fresh" station is then drawn stale. A payload without freshness (an older API) is also NOT CURRENT. It is never shown as current.
-- **Look.** Fresh keeps the origin colour; stale is dimmed and labelled `STALE <age>`; offline is grey and labelled `OFFLINE · last seen HH:MM:SSZ`. The origin label is always kept.
+- **Look.** Fresh keeps the origin colour; stale is dimmed and labelled `STALE <age>`; offline is grey and labelled `OFFLINE (no data for <duration>)`; the hub only knows that no new data arrived, so the wording never says the station or sensor is down. The origin label is always kept.
 - **What this cannot tell.** If the layers API stops, only "no new data" is known; it cannot say the Station API is down. The layer shows NOT CURRENT in that case, and stale/offline when the hub itself reports them.
 - Per-sensor freshness is deferred; freshness is per station.
 

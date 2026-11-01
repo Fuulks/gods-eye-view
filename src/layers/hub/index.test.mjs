@@ -229,8 +229,8 @@ test(
     assert.match(h.label(), /^LIVE · st-1 · STALE/);
     assert.match(h.layer.source, /STALE/);
     await poll(600);
-    assert.match(h.label(), /OFFLINE · last seen 10:00:00Z/);
-    assert.match(h.layer.source, /OFFLINE/);
+    assert.match(h.label(), /OFFLINE \(no data for \d+ min\)/);
+    assert.match(h.layer.source, /OFFLINE \(no recent data\)/);
   },
 );
 

@@ -52,7 +52,7 @@ t(
     assert.equal(seen(111).state, 'stale'); // 121 s
     assert.equal(seen(111).suffix, 'STALE 2 min');
     assert.equal(seen(591).state, 'offline'); // 601 s
-    assert.match(seen(591).suffix, /^OFFLINE · last seen 10:00:00Z$/);
+    assert.match(seen(591).suffix, /^OFFLINE \(no data for 10 min\)$/);
   },
 );
 
@@ -95,7 +95,7 @@ t(
     const v = at(row({ ageS: 5 }), 1000 + 700 * 1000);
     assert.equal(v.state, 'offline');
     assert.equal(v.current, false);
-    assert.match(v.suffix, /^OFFLINE · last seen 10:00:00Z$/);
+    assert.match(v.suffix, /^OFFLINE \(no data for \d+ (s|min)\)$/);
   },
 );
 
@@ -174,7 +174,7 @@ t(
         states: ['stale', 'offline'],
         hubCurrent: true,
       }),
-      'OneIntOS · SIMULATED · OFFLINE',
+      'OneIntOS · SIMULATED · OFFLINE (no recent data)',
     );
     assert.equal(
       hubLayerText({

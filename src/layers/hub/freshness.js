@@ -82,8 +82,8 @@ export function classifyStation({ row, receivedAtMs, nowMs, lastSuccessMs }) {
   const age = formatAge(ageS);
   let suffix;
   if (state === 'offline') {
-    const seen = clockOf(row.lastIngestAt);
-    suffix = `OFFLINE · last seen ${seen ?? 'unknown'}`;
+    // The hub only knows that no new data arrived; it cannot say the station or sensor is down.
+    suffix = age ? `OFFLINE (no data for ${age})` : 'OFFLINE (no recent data)';
   } else if (!hubCurrent) {
     suffix = age ? `NOT CURRENT · ${age}` : 'NOT CURRENT';
   } else if (state === 'stale') {
@@ -155,5 +155,5 @@ export function hubLayerText({
     'fresh',
   );
   if (worst === 'fresh') return head;
-  return `${head} · ${worst === 'unknown' ? 'NOT CURRENT' : worst.toUpperCase()}`;
+  return `${head} · ${worst === 'unknown' ? 'NOT CURRENT' : worst === 'offline' ? 'OFFLINE (no recent data)' : worst.toUpperCase()}`;
 }

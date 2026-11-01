@@ -38,8 +38,13 @@ export function stationCardModel({
     : view.state === 'offline'
       ? STATE_TEXT.offline
       : STATE_TEXT.unknown;
+  const offlineFor = view.ageS === null ? null : formatAge(view.ageS);
+  const statusText =
+    status === STATE_TEXT.offline
+      ? `${status} (${offlineFor ? `no data for ${offlineFor}` : 'no recent data'})`
+      : status;
   const lines = [
-    `${msg('Freshness')}: ${status}${view.hubCurrent ? '' : ` · ${msg('hub not reachable')}`}`,
+    `${msg('Freshness')}: ${statusText}${view.hubCurrent ? '' : ` · ${msg('hub not reachable')}`}`,
     `${msg('Age')}: ${view.ageS === null ? msg('unknown') : (formatAge(view.ageS) ?? msg('unknown'))}`,
     `${msg('Last ingest')}: ${when(row.lastIngestAt, nowWallMs)}`,
     `${msg('Expected interval')}: ${
@@ -70,7 +75,7 @@ export function stationCardModel({
   return {
     title: `${originLabel(row.origin)} · ${row.id}`,
     accent: originColor(row.origin),
-    status,
+    status: statusText,
     notCurrent: !view.current,
     lines,
     sensors,

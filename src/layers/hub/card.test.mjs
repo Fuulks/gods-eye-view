@@ -93,5 +93,6 @@ test('card shows offline and stale as such', TIMEOUT, () => {
     ...base,
     row: { ...row, ageS: 700, freshness: 'offline' },
   });
-  assert.equal(off.status, 'OFFLINE');
+  assert.equal(off.status, 'OFFLINE (no data for 12 min)');
+  assert.doesNotMatch(off.status, /down|dead|broken|device/i);
 });
