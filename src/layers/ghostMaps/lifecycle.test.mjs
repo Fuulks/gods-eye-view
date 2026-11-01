@@ -188,6 +188,15 @@ test('a placemark is a symbol up close and a dot far away, never both', async (t
   assert.equal(far.far, Number.POSITIVE_INFINITY);
 });
 
+test('markers are not ground-clamped, so zooming cannot hide them', async (t) => {
+  const { layer, viewer, mounted } = fixture(t);
+  await layer.update(viewer);
+  const [dataSource] = [...mounted];
+  const [entity] = dataSource.entities.values;
+  assert.equal(entity.billboard.heightReference, undefined);
+  assert.equal(entity.point.heightReference, undefined);
+});
+
 test('entity construction failure leaves nothing mounted and reports the error', async (t) => {
   const { layer, viewer, mounted, created } = fixture(t);
   t.mock.method(Cesium.EntityCollection.prototype, 'add', () => {

@@ -229,10 +229,12 @@ export function createGhostMapsLayer({
                 scale:
                   Math.min(1.5, Math.max(0.6, style.iconScale ?? 1)) *
                   GHOST_MARKER_DISPLAY_SCALE,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
                 verticalOrigin: Cesium.VerticalOrigin.CENTER,
-                // Ground-clamped icons would sink into terrain and 3D tiles; the
-                // horizon cull hides the far side instead (see `_horizon`).
+                // Not ground-clamped: a clamped marker is re-placed from terrain
+                // and 3D-tile height queries as you zoom, and it is hidden while
+                // that height is unknown. Placed on the ellipsoid and drawn over
+                // the depth buffer, it stays put; the horizon cull hides the far
+                // side instead (see `_horizon`).
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
                 // Close up: the symbol. Far away it hands over to the dot
                 // below, so a dense region does not smear into one blob.
@@ -250,7 +252,6 @@ export function createGhostMapsLayer({
                 outlineColor:
                   Cesium.Color.fromCssColorString('#041016').withAlpha(0.9),
                 outlineWidth: 1,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
                 distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
                   GHOST_SYMBOL_MAX_DISTANCE_M,
