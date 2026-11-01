@@ -3225,5 +3225,6 @@
   "Hydrometric sensor · Vigicrues": "Гидрометрический датчик · Vigicrues",
   "Forecast bulletin published": "Прогнозный бюллетень опубликован",
   "No forecast bulletin": "Нет прогнозного бюллетеня",
-  "River warning zone · Vigicrues": "Зона речного предупреждения · Vigicrues"
+  "River warning zone · Vigicrues": "Зона речного предупреждения · Vigicrues",
+  "Keeps events, places and their history in your own PostGIS database. Paste the password you gave the platform database and its connection URL (postgres://gev:<password>@postgres:5432/gev inside Docker, 127.0.0.1 instead of postgres from the host). Use letters and digits in the password.": "Хранит события, места и их историю в вашей собственной базе PostGIS. Вставьте пароль базы платформы и её URL подключения (postgres://gev:<password>@postgres:5432/gev внутри Docker, 127.0.0.1 вместо postgres с хоста). В пароле используйте буквы и цифры."
 }

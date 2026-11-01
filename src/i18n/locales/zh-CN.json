@@ -3012,5 +3012,6 @@
   "Hydrometric sensor · Vigicrues": "水文传感器 · Vigicrues",
   "Forecast bulletin published": "已发布预报公报",
   "No forecast bulletin": "无预报公报",
-  "River warning zone · Vigicrues": "河流警戒区 · Vigicrues"
+  "River warning zone · Vigicrues": "河流警戒区 · Vigicrues",
+  "Keeps events, places and their history in your own PostGIS database. Paste the password you gave the platform database and its connection URL (postgres://gev:<password>@postgres:5432/gev inside Docker, 127.0.0.1 instead of postgres from the host). Use letters and digits in the password.": "将事件、地点及其历史保存在您自己的 PostGIS 数据库中。请粘贴为平台数据库设置的密码及其连接 URL（Docker 内为 postgres://gev:<password>@postgres:5432/gev，在主机上请将 postgres 换成 127.0.0.1）。密码请使用字母和数字。"
 }

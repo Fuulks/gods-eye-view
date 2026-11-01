@@ -5,12 +5,24 @@ exactly as before and `/api/platform/health` answers `{configured:false}`.
 
 ## First start
 
-1. Choose a password and put it in `.env`:
+1. Choose a password and save it. The easiest way is the in-app POWER UP
+   panel: open it, find **DATA PLATFORM**, and paste the password and the
+   connection URL below. The panel writes both to `.env` and restarts the dev
+   server. (Or edit `.env` yourself:)
 
    ```
    GEV_DB_PASSWORD=<long random string>
    GEV_DATABASE_URL=postgres://gev:<same password>@postgres:5432/gev
    ```
+
+   Use letters and digits in the password (hex is ideal): the panel refuses
+   `# " ' $ \` and backtick, which dotenv would misread, and anything else
+   in a URL password would need percent-encoding.
+
+   The password is applied when the database volume is first created. Changing
+   it later in the panel does **not** change the password inside an existing
+   database; reset it with `ALTER ROLE gev PASSWORD '...'` (or recreate the
+   volume) and update the URL to match.
 
    Use host `postgres` for the app inside compose. For commands you run on
    the host (migrations, `psql`) use `127.0.0.1` instead of `postgres`.

@@ -3153,5 +3153,6 @@
   "Forecast bulletin published": "Boletim de previsão publicado",
   "No forecast bulletin": "Sem boletim de previsão",
   "River warning zone · Vigicrues": "Zona de aviso fluvial · Vigicrues",
-  "Portugal": "Portugal"
+  "Portugal": "Portugal",
+  "Keeps events, places and their history in your own PostGIS database. Paste the password you gave the platform database and its connection URL (postgres://gev:<password>@postgres:5432/gev inside Docker, 127.0.0.1 instead of postgres from the host). Use letters and digits in the password.": "Guarda eventos, locais e o seu histórico na sua própria base PostGIS. Cole a palavra-passe dada à base da plataforma e o seu URL de ligação (postgres://gev:<password>@postgres:5432/gev dentro do Docker, 127.0.0.1 em vez de postgres a partir do anfitrião). Use letras e dígitos na palavra-passe."
 }

@@ -467,3 +467,44 @@ test('key guidance can offer another source that works with a key already set', 
   );
   assert.equal(keySetupWithAlternatives('Needs X', []), 'Needs X');
 });
+
+test('the data platform password and connection URL can be saved from the panel', () => {
+  const url = 'postgres://gev:a1b2c3d4e5f6@postgres:5432/gev';
+  const checked = validateKeySetupUpdates({
+    GEV_DB_PASSWORD: 'a1b2c3d4e5f6',
+    GEV_DATABASE_URL: url,
+  });
+  assert.equal(checked.ok, true);
+  const text = upsertDotenvValues(
+    '# existing\nGEV_DB_PASSWORD=\n',
+    checked.updates,
+  );
+  assert.match(text, /^GEV_DB_PASSWORD=a1b2c3d4e5f6$/m);
+  assert.match(text, new RegExp(`^GEV_DATABASE_URL=${url}$`, 'm'));
+  const status = keySetupStatus({
+    GEV_DB_PASSWORD: 'a1b2c3d4e5f6',
+    GEV_DATABASE_URL: url,
+  });
+  const row = status.keys.find((key) => key.id === 'platform-database');
+  assert.equal(row.set, true);
+  assert.ok(
+    !JSON.stringify(status).includes('a1b2c3d4e5f6'),
+    'the status never carries a value',
+  );
+  // Only one of the two is not "set": the row asks for both.
+  assert.equal(
+    keySetupStatus({ GEV_DB_PASSWORD: 'x' }).keys.find(
+      (key) => key.id === 'platform-database',
+    ).set,
+    false,
+  );
+});
+
+test('a database password with characters dotenv would misread is refused', () => {
+  for (const bad of ['pa$$word', 'pa#ss', 'pa"ss', "pa'ss", 'pa`ss', 'pa ss'])
+    assert.equal(
+      validateKeySetupUpdates({ GEV_DB_PASSWORD: bad }).ok,
+      false,
+      bad,
+    );
+});

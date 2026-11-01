@@ -165,6 +165,16 @@ export const KEY_SETUP_KEYS = Object.freeze([
     envVars: Object.freeze(['IDFM_PRIM_API_KEY']),
     tier: 'free',
   }),
+  Object.freeze({
+    id: 'platform-database',
+    title: 'DATA PLATFORM', // i18n-ignore: product name
+    unlocks: msg(
+      'Keeps events, places and their history in your own PostGIS database. Paste the password you gave the platform database and its connection URL (postgres://gev:<password>@postgres:5432/gev inside Docker, 127.0.0.1 instead of postgres from the host). Use letters and digits in the password.',
+    ),
+    getUrl: 'https://hub.docker.com/r/postgis/postgis',
+    envVars: Object.freeze(['GEV_DB_PASSWORD', 'GEV_DATABASE_URL']),
+    tier: 'free',
+  }),
 ]);
 
 /** Hostnames a Provider Settings request may arrive under or originate from. */
