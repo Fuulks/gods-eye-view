@@ -131,7 +131,6 @@ export function createHubStationsLayer({
         receivedAtMs: _receivedAtMs,
         nowMs,
         lastSuccessMs: _lastSuccessMs,
-        nowWallMs: wallNow(),
       }),
     );
   }

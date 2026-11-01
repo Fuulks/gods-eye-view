@@ -14,24 +14,19 @@ const STATE_TEXT = Object.freeze({
   unknown: 'NOT CURRENT',
 });
 
-function when(iso, nowWallMs) {
-  if (!iso) return t('unknown');
-  const ms = Date.parse(iso);
-  const rel = Number.isFinite(ms) ? formatAge((nowWallMs - ms) / 1000) : null;
-  return rel ? `${iso} (${rel} ago)` : iso;
+/**
+ * A UTC time exactly as the hub sent it. No "N ago" is derived here: that would use the browser clock, which can
+ * disagree with the OneIntOS server clock the age is measured on. The age line carries the elapsed time.
+ */
+function when(iso) {
+  return iso || t('unknown');
 }
 
 /**
  * Pure content of the card, so tests assert text without a DOM.
  * @returns {{title: string, accent: string, status: string, notCurrent: boolean, lines: string[], sensors: string[][]}}
  */
-export function stationCardModel({
-  row,
-  receivedAtMs,
-  nowMs,
-  lastSuccessMs,
-  nowWallMs,
-}) {
+export function stationCardModel({ row, receivedAtMs, nowMs, lastSuccessMs }) {
   const view = classifyStation({ row, receivedAtMs, nowMs, lastSuccessMs });
   const status = view.hubCurrent
     ? STATE_TEXT[view.state]
@@ -46,7 +41,7 @@ export function stationCardModel({
   const lines = [
     `${t('Freshness')}: ${statusText}${view.hubCurrent ? '' : ` · ${t('hub not reachable')}`}`,
     `${t('Age')}: ${view.ageS === null ? t('unknown') : (formatAge(view.ageS) ?? t('unknown'))}`,
-    `${t('Last ingest')}: ${when(row.lastIngestAt, nowWallMs)}`,
+    `${t('Last ingest')}: ${when(row.lastIngestAt)}`,
     `${t('Expected interval')}: ${
       Number.isFinite(row.expectedIntervalS)
         ? (formatAge(row.expectedIntervalS) ?? t('unknown'))
@@ -63,8 +58,8 @@ export function stationCardModel({
       : '';
     return [
       `${r.sensorId} · ${r.metric}: ${r.value}${r.unit ? ` ${r.unit}` : ''}${q}${c}`,
-      `${t('Observed')}: ${when(r.observedAt, nowWallMs)}`,
-      `${t('Received')}: ${when(r.receivedAt, nowWallMs)}`,
+      `${t('Observed')}: ${when(r.observedAt)}`,
+      `${t('Received')}: ${when(r.receivedAt)}`,
       `${t('Delay')}: ${
         Number.isFinite(r.delayS)
           ? (formatAge(Math.max(0, r.delayS)) ?? t('unknown'))

@@ -31,7 +31,6 @@ const base = {
   receivedAtMs: 0,
   nowMs: 1000,
   lastSuccessMs: 0,
-  nowWallMs: Date.parse('2026-11-01T10:00:03Z'),
 };
 
 test(
@@ -43,12 +42,12 @@ test(
     assert.equal(m.status, 'FRESH');
     assert.equal(m.notCurrent, false);
     const text = m.lines.join('\n');
-    assert.match(text, /Last ingest: 2026-11-01T10:00:00Z \(3 s ago\)/);
+    assert.match(text, /Last ingest: 2026-11-01T10:00:00Z$/m);
     assert.match(text, /Position approximate \(±5000 m\)/);
     assert.deepEqual(m.sensors[0], [
       's1 · humidity: 40 % · ok 50%',
-      'Observed: 2026-11-01T09:59:58Z (5 s ago)',
-      'Received: 2026-11-01T10:00:00Z (3 s ago)',
+      'Observed: 2026-11-01T09:59:58Z',
+      'Received: 2026-11-01T10:00:00Z',
       'Delay: 2 s',
     ]);
   },
@@ -109,4 +108,14 @@ test('card labels follow the active locale', TIMEOUT, async () => {
     setLocale('en');
   }
   assert.match(stationCardModel(base).lines.join('\n'), /Age: /);
+});
+
+test('card never derives times from the browser clock', TIMEOUT, () => {
+  const m = stationCardModel({
+    ...base,
+    nowWallMs: Date.parse('2026-11-01T10:15:00Z'),
+  });
+  const text = [...m.lines, ...m.sensors.flat()].join('\n');
+  assert.doesNotMatch(text, /ago/);
+  assert.match(text, /Age: 3 s/);
 });
