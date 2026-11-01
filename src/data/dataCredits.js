@@ -464,6 +464,12 @@ export const DATA_CREDITS = [
       'Shown as published; reports are S2 assessments, not verified fact.',
   },
   {
+    key: 'hub-stations',
+    html:
+      'OneIntOS stations: local data from your own OneIntOS instance, labelled LIVE, SIMULATED or REPLAYED. ' +
+      'Positions are approximate. Not for redistribution.',
+  },
+  {
     key: 'drivebc-cctv',
     html:
       'CCTV cameras &amp; frames (British Columbia): ' +

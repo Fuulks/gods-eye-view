@@ -10,6 +10,18 @@ For the roadmap and open backlog, see the repository issue tracker.
 
 ## Open
 
+### Vegvesen CCTV height tests are order-dependent
+Status: Open (upstream, not caused by the OneIntOS hub layer)
+
+Context:
+- 24 Vegvesen CCTV height-lookup tests pass when run alone but fail in the full `npm test` run with "Promise resolution is still pending but the event loop has already resolved".
+- Observed on Node 22 with identical failures on the base commit and on the hub branch; CI on Node 24.14.0 and 26.x passed for the hub branch, so the failure may be specific to the older Node.
+- Suspected cause: shared module state or a pending promise left by an earlier test file. Not investigated.
+
+Next iteration candidates:
+- Reproduce on Node 24.14.0, then bisect by test file order.
+- Isolate or reset the height-lookup cache between tests.
+
 ### Street traffic can be slow/uneven when panning across dense city blocks
 Status: Open (partially mitigated)
 
