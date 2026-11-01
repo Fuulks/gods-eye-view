@@ -369,3 +369,22 @@ test(
     );
   },
 );
+
+test(
+  're-enabling after a pause relabels at once and never shows old data as current',
+  TIMEOUT,
+  async () => {
+    const h = harness();
+    await h.layer.update();
+    h.layer.disable();
+    h.t.mono += 30000;
+    h.t.wall += 30000;
+    h.layer.enable();
+    assert.match(h.layer.source, /NOT CURRENT/);
+    assert.match(h.label(), /^LIVE · st-1 · NOT CURRENT/);
+    assert.ok(
+      h.calls.ds.entities.getById('hub-station:st-1').point.color.getValue()
+        .alpha < 1,
+    );
+  },
+);

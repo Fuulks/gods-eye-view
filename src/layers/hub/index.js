@@ -215,6 +215,8 @@ export function createHubStationsLayer({
       startTick();
       if (_dataSource) _dataSource.show = true;
       overlayHost.setVisible(HUB_STATIONS_OVERLAY_SOURCE_ID, true);
+      // Rows kept across a disable have aged: relabel now, not on the next tick.
+      refreshView();
     },
 
     disable() {
