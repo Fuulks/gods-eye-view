@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as Cesium from 'cesium';
 import { createHubStationsLayer } from './index.js';
+import { claimPointer, releasePointer } from '../../data/inputOwnership.js';
 
 const TIMEOUT = { timeout: 10000 };
 
@@ -342,7 +343,7 @@ test(
     h.advance(130000);
     assert.ok(alpha() < 1, 'stale is dimmed');
     h.advance(700000);
-    assert.ok(alpha() < 0.7, 'offline is dimmer still');
+    assert.ok(alpha() < 0.7, 'offline is more transparent than fresh');
   },
 );
 
@@ -418,5 +419,23 @@ test(
     const [rec] = h.layer.getAnalystRecords();
     assert.equal(rec.freshness, 'unknown');
     assert.equal(rec.current, false);
+  },
+);
+
+test(
+  'a hub-reported stale or offline status wins over a small age',
+  TIMEOUT,
+  async () => {
+    for (const [freshness, label] of [
+      ['stale', /STALE/],
+      ['offline', /OFFLINE/],
+    ]) {
+      const h = harness({ rows: [row({ freshness, ageS: 5 })] });
+      await h.layer.update();
+      assert.match(h.label(), label, freshness);
+      const [rec] = h.layer.getAnalystRecords();
+      assert.equal(rec.freshness, freshness);
+      assert.equal(rec.current, false);
+    }
   },
 );
