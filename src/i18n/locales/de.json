@@ -2947,5 +2947,13 @@
   "Edit anchors, data packs and shot details": "Anker, Datenpakete und Aufnahmedetails bearbeiten",
   "Download this scene as JSON or an asset bundle": "Diese Szene als JSON oder Asset-Bundle herunterladen",
   "OneIntOS hub unavailable": "OneIntOS-Hub nicht verfügbar",
-  "OneIntOS Stations": "OneIntOS Stations"
+  "OneIntOS Stations": "OneIntOS Stations",
+  "Freshness": "Aktualität",
+  "hub not reachable": "Hub nicht erreichbar",
+  "Age": "Alter",
+  "Last ingest": "Letzte Aufnahme",
+  "Expected interval": "Erwartetes Intervall",
+  "Position approximate": "Position ungefähr",
+  "Received": "Empfangen",
+  "Delay": "Verzögerung"
 }

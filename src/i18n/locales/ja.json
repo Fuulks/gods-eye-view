@@ -2877,5 +2877,13 @@
   "Edit anchors, data packs and shot details": "アンカー、データパック、ショットの詳細を編集",
   "Download this scene as JSON or an asset bundle": "このシーンをJSONまたはアセットバンドルとしてダウンロード",
   "OneIntOS hub unavailable": "OneIntOS ハブに接続できません",
-  "OneIntOS Stations": "OneIntOS Stations"
+  "OneIntOS Stations": "OneIntOS Stations",
+  "Freshness": "鮮度",
+  "hub not reachable": "ハブに接続できません",
+  "Age": "経過時間",
+  "Last ingest": "最終取り込み",
+  "Expected interval": "想定間隔",
+  "Position approximate": "位置は概略",
+  "Received": "受信",
+  "Delay": "遅延"
 }

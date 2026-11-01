@@ -8,11 +8,23 @@ import {
   mapAnalystRecord,
   originColor,
 } from './model.js';
+import { isPointerFree } from '../../data/inputOwnership.js';
+import {
+  HUB_POLL_MS,
+  classifyStation,
+  hubIsCurrent,
+  hubLayerText,
+  stationLabel,
+  stationVisual,
+} from './freshness.js';
+import { createStationCardPanel, stationCardModel } from './card.js';
 export * from './model.js';
 export { createHubSource } from './source.js';
 
 const msg = (text) => text;
 const LAYER_SOURCE_ID = 'stations';
+const ENTITY_PREFIX = 'hub-station:';
+const RELABEL_MS = 1000;
 
 /**
  * OneIntOS station layer. Stations come from the same-origin hub proxy, are
@@ -20,7 +32,17 @@ const LAYER_SOURCE_ID = 'stations';
  * labelled through the overlay host with their data origin (LIVE, SIMULATED
  * or REPLAYED). Nothing from the hub is ever written as markup.
  */
-export function createHubStationsLayer({ source, overlayHost } = {}) {
+export function createHubStationsLayer({
+  source,
+  overlayHost,
+  picking = null,
+  now = () => performance.now(),
+  wallNow = Date.now,
+  setTimer = (fn, ms) => setInterval(fn, ms),
+  clearTimer = (handle) => clearInterval(handle),
+  createInputHandler = (canvas) => new Cesium.ScreenSpaceEventHandler(canvas),
+  doc = globalThis.document ?? null,
+} = {}) {
   if (typeof source?.getStations !== 'function')
     throw new TypeError('Hub stations require a hub source');
   if (!overlayHost) throw new TypeError('Hub stations require an overlay host');
@@ -32,13 +54,142 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
   let _lastUpdate = null;
   let _lastError = null;
   let _enabled = false;
+  let _origin = null;
+  let _receivedAtMs = null;
+  let _lastSuccessMs = null;
+  let _lastSuccessWallMs = null;
+  let _timer = null;
+  let _handler = null;
+  let _selectedId = null;
+  let _panel = null;
+  const _entities = new Map();
+  const _positions = new Map();
+
+  const viewOf = (row, nowMs) =>
+    classifyStation({
+      row,
+      receivedAtMs: _receivedAtMs,
+      nowMs,
+      lastSuccessMs: _lastSuccessMs,
+    });
+
+  function applyVisual(entity, origin, state) {
+    const visual = stationVisual(origin, state);
+    const color = Cesium.Color.fromCssColorString(visual.color);
+    entity.point.color = color.withAlpha(visual.pointAlpha);
+    entity.ellipse.material = new Cesium.ColorMaterialProperty(
+      color.withAlpha(visual.ringAlpha),
+    );
+    entity.ellipse.outlineColor = color.withAlpha(
+      state === 'fresh' ? 0.7 : 0.3,
+    );
+    return visual;
+  }
+
+  /** Re-derive everything time-dependent: labels, colours, layer text and the open card. */
+  function refreshView() {
+    if (!_dataSource) return;
+    const nowMs = now();
+    const entries = [];
+    const states = [];
+    for (const row of _rows) {
+      const view = viewOf(row, nowMs);
+      states.push(view.state);
+      const entity = _entities.get(row.id);
+      const visual = entity
+        ? applyVisual(entity, row.origin, view.state)
+        : stationVisual(row.origin, view.state);
+      const position = _positions.get(row.id);
+      if (position && entries.length < HUB_OVERLAY_COHORT_LIMIT)
+        entries.push({
+          ...createHubOverlayEntry({ row, position }),
+          title: stationLabel(row, view),
+          accent: visual.color,
+        });
+    }
+    overlayHost.setEntries(HUB_STATIONS_OVERLAY_SOURCE_ID, entries, {
+      cohortLimit: HUB_OVERLAY_COHORT_LIMIT,
+      collisionCapacity: HUB_OVERLAY_COHORT_LIMIT,
+      moving: false,
+    });
+    layer.source = hubLayerText({
+      origin: _origin,
+      states,
+      hubCurrent: hubIsCurrent({ lastSuccessMs: _lastSuccessMs, nowMs }),
+      lastSuccessWallMs: _lastSuccessWallMs,
+    });
+    renderCard(nowMs);
+  }
+
+  function renderCard(nowMs = now()) {
+    if (!_selectedId || !_panel) return;
+    const row = _rows.find((r) => r.id === _selectedId);
+    if (!row) return closeCard();
+    _panel.render(
+      stationCardModel({
+        row,
+        receivedAtMs: _receivedAtMs,
+        nowMs,
+        lastSuccessMs: _lastSuccessMs,
+        nowWallMs: wallNow(),
+      }),
+    );
+  }
+
+  function openCard(id) {
+    if (!doc?.body) return;
+    _panel ??= createStationCardPanel({ doc, host: doc.body });
+    _selectedId = id;
+    renderCard();
+  }
+
+  function closeCard() {
+    _selectedId = null;
+    _panel?.hide();
+  }
+
+  function startTick() {
+    if (_timer !== null) return;
+    _timer = setTimer(refreshView, RELABEL_MS);
+  }
+
+  function stopTick() {
+    if (_timer === null) return;
+    clearTimer(_timer);
+    _timer = null;
+  }
+
+  function installClicks(viewer) {
+    if (!picking || !viewer?.scene?.canvas) return;
+    picking.registerPickOwner?.(HUB_STATIONS_LAYER_ID, (id) =>
+      String(id).startsWith(ENTITY_PREFIX),
+    );
+    _handler = createInputHandler(viewer.scene.canvas);
+    _handler.setInputAction((click) => {
+      if (!isPointerFree() || !_enabled) return;
+      const picked = viewer.scene.pick(click.position);
+      const id = picking.resolvePickId?.(picked) ?? null;
+      if (id && String(id).startsWith(ENTITY_PREFIX)) {
+        const stationId = String(id).slice(ENTITY_PREFIX.length);
+        if (_rows.some((r) => r.id === stationId)) openCard(stationId);
+        return;
+      }
+      closeCard();
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+  }
+
+  function releaseClicks() {
+    _handler?.destroy();
+    _handler = null;
+    picking?.unregisterPickOwner?.(HUB_STATIONS_LAYER_ID);
+  }
 
   const layer = {
     id: HUB_STATIONS_LAYER_ID,
     name: 'OneIntOS Stations',
     icon: '📡',
     source: hubSourceText(null),
-    updateInterval: 5000,
+    updateInterval: HUB_POLL_MS,
 
     init(viewer) {
       if (_viewer) throw new Error('Hub stations layer is already initialized');
@@ -51,11 +202,17 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
       _lastUpdate = null;
       _lastError = null;
       _enabled = false;
+      _origin = null;
+      _receivedAtMs = null;
+      _lastSuccessMs = null;
+      _lastSuccessWallMs = null;
       overlayHost.setVisible(HUB_STATIONS_OVERLAY_SOURCE_ID, false);
+      installClicks(viewer);
     },
 
     enable() {
       _enabled = true;
+      startTick();
       if (_dataSource) _dataSource.show = true;
       overlayHost.setVisible(HUB_STATIONS_OVERLAY_SOURCE_ID, true);
     },
@@ -64,6 +221,8 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
       _request?.abort();
       _request = null;
       _enabled = false;
+      stopTick();
+      closeCard();
       if (_dataSource) _dataSource.show = false;
       overlayHost.clearSource(HUB_STATIONS_OVERLAY_SOURCE_ID);
       overlayHost.setVisible(HUB_STATIONS_OVERLAY_SOURCE_ID, false);
@@ -80,8 +239,10 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
         });
         if (request.signal.aborted || _request !== request || !_enabled)
           return false;
-        const entities = [];
-        const overlayEntries = [];
+        const receivedAt = now();
+        _dataSource.entities.removeAll();
+        _entities.clear();
+        _positions.clear();
         for (const row of rows) {
           const position = Cesium.Cartesian3.fromDegrees(row.lon, row.lat);
           const color = Cesium.Color.fromCssColorString(
@@ -89,57 +250,50 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
           );
           // The position is deliberately approximate; the ring shows how approximate.
           const radius = Math.max(500, (row.precisionM ?? 10000) / 2);
-          entities.push(
-            new Cesium.Entity({
-              id: `hub-station:${row.id}`,
-              position,
-              point: {
-                pixelSize: 9,
-                color,
-                outlineColor: Cesium.Color.BLACK,
-                outlineWidth: 1,
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-              },
-              ellipse: {
-                semiMajorAxis: radius,
-                semiMinorAxis: radius,
-                material: new Cesium.ColorMaterialProperty(
-                  color.withAlpha(0.12),
-                ),
-                outline: true,
-                outlineColor: color.withAlpha(0.7),
-                heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
-              },
-              properties: {
-                stationId: row.id,
-                origin: row.origin,
-                approximate: true,
-              },
-            }),
-          );
-          overlayEntries.push(createHubOverlayEntry({ row, position }));
+          const entity = new Cesium.Entity({
+            id: `${ENTITY_PREFIX}${row.id}`,
+            position,
+            point: {
+              pixelSize: 9,
+              color,
+              outlineColor: Cesium.Color.BLACK,
+              outlineWidth: 1,
+              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            },
+            ellipse: {
+              semiMajorAxis: radius,
+              semiMinorAxis: radius,
+              material: new Cesium.ColorMaterialProperty(color.withAlpha(0.12)),
+              outline: true,
+              outlineColor: color.withAlpha(0.7),
+              heightReference: Cesium.HeightReference.CLAMP_TO_GROUND,
+            },
+            properties: {
+              stationId: row.id,
+              origin: row.origin,
+              approximate: true,
+            },
+          });
+          _dataSource.entities.add(entity);
+          _entities.set(row.id, entity);
+          _positions.set(row.id, position);
         }
-        _dataSource.entities.removeAll();
-        for (const entity of entities) _dataSource.entities.add(entity);
-        overlayHost.setEntries(
-          HUB_STATIONS_OVERLAY_SOURCE_ID,
-          overlayEntries.slice(0, HUB_OVERLAY_COHORT_LIMIT),
-          {
-            cohortLimit: HUB_OVERLAY_COHORT_LIMIT,
-            collisionCapacity: HUB_OVERLAY_COHORT_LIMIT,
-            moving: false,
-          },
-        );
         _rows = rows;
         _count = rows.length;
-        layer.source = hubSourceText(origin);
+        _origin = origin;
+        _receivedAtMs = receivedAt;
+        _lastSuccessMs = receivedAt;
+        _lastSuccessWallMs = wallNow();
         _lastUpdate = Date.now();
+        refreshView();
         _lastError = null;
         return true;
       } catch (e) {
         if (request.signal.aborted || _request !== request || !_enabled)
           return false;
         _lastError = e?.message || msg('OneIntOS hub unavailable');
+        // Keep the last stations on screen, but they age and the layer says it is not current.
+        refreshView();
         return false;
       } finally {
         if (_request === request) _request = null;
@@ -148,6 +302,9 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
 
     destroy(viewer = _viewer) {
       _request?.abort();
+      stopTick();
+      closeCard();
+      releaseClicks();
       _request = null;
       _viewer = null;
       _enabled = false;
@@ -161,6 +318,8 @@ export function createHubStationsLayer({ source, overlayHost } = {}) {
       _count = 0;
       _lastUpdate = null;
       _lastError = null;
+      _entities.clear();
+      _positions.clear();
     },
 
     getAnalystRecords(maxCount = 500) {
