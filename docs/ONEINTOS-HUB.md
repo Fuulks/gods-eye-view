@@ -18,3 +18,18 @@ Rules the code enforces, each with a test:
 - **Positions are approximate.** The map shows a ring the size of the rounding applied by OneIntOS.
 
 Configuration (server environment only; placeholders are in `.env.example`): `ONEINTOS_LAYERS_URL`, `ONEINTOS_LAYERS_TOKEN`.
+
+
+## Station card spike (freshness work)
+
+Question: can the world overlay's `card` variant show a station's readings as multi-line text through `textContent`?
+
+Findings (pinned by `src/layers/hub/overlayCardSpike.test.mjs`):
+
+- The overlay takes `title` plus `details: string[]`, one painted line per entry, and normalises every line to a string.
+- It paints on a canvas with `ctx.fillText`. Text never reaches the DOM, so there is no markup path, but it is **not** `textContent`: the only `textContent` in the overlay is the accessibility button mirror, one short label per actionable card.
+- There is no wrapping and no truncation: one long line makes a very wide card, so a caller must clip its own lines.
+- A card is reachable by `hitTestWorldOverlay` rectangles and the accessibility button mirror. Canvas text cannot be selected or read by assistive technology.
+- Click handling in other layers is a layer-owned `Cesium.ScreenSpaceEventHandler` on the scene canvas, `scene.pick`, `pickRegistry` (`resolvePickId`, `registerPickOwner`, `isOwnedByOtherLayer`) and `inputOwnership.isPointerFree`.
+
+Decision rule (approved): use the overlay only if it supports multi-line text via `textContent`. It supports multi-line text but through canvas painting, so the card is a **dedicated DOM panel** built with `createElement` and `textContent`. It also wraps long values, can be read by assistive technology, and updates in place.

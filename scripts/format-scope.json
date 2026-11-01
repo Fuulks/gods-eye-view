@@ -892,6 +892,7 @@
   "src/layers/hub/records.test.mjs",
   "src/layers/hub/source.test.mjs",
   "src/layers/hub/noInnerHtml.test.mjs",
+  "src/layers/hub/overlayCardSpike.test.mjs",
   "scripts/qa-ghostmaps.mjs",
   "src/layers/cyclones/index.js",
   "src/layers/cyclones/rendering.js",
