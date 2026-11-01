@@ -48,8 +48,17 @@ test('a valid collection becomes plain display records that keep their origin', 
         value: 21.5,
         unit: 'C',
         observedAt: '2026-01-15T12:10:00.000000Z',
+        receivedAt: null,
+        delayS: null,
+        quality: { status: null, confidence: null },
       },
     ],
+    freshness: 'unknown',
+    lastIngestAt: null,
+    ageS: null,
+    expectedIntervalS: null,
+    staleAfterS: null,
+    offlineAfterS: null,
   });
 });
 
@@ -140,7 +149,7 @@ test('hostile text never survives: unknown fields are ignored and strings are bo
   assert.equal(row.readings.length, 1);
   const r = row.readings[0];
   assert.ok(
-    r.metric.length <= 32 && r.unit.length <= 16 && r.observedAt.length <= 40,
+    r.metric.length <= 32 && r.unit.length <= 16 && r.observedAt === null,
   );
   assert.ok(
     !/[\u0000-\u001f‮]/.test(JSON.stringify(r).replace(/\\u[0-9a-f]{4}/gi, '')),
@@ -173,3 +182,154 @@ test('cleanText flattens control characters and bidi overrides', () => {
   assert.equal(cleanText('   '), null);
   assert.equal(cleanText(5), null);
 });
+
+const TEST_LIMIT_MS = 10000;
+const withFreshness = (props = {}, layer = {}) =>
+  collection(
+    [
+      feature({
+        properties: {
+          location_precision_m: 11100,
+          readings: [
+            {
+              sensor_id: 'bme280-sim-01',
+              metric: 'temperature',
+              value: 21.5,
+              unit: 'C',
+              observed_at: '2026-01-15T12:10:00.000000Z',
+              received_at: '2026-01-15T12:12:30.000000Z',
+              delay_s: 150,
+              quality: { status: 'good', confidence: 0.95 },
+            },
+          ],
+          freshness: 'fresh',
+          last_ingest_at: '2030-05-01T10:00:00.000000Z',
+          age_s: 12.5,
+          expected_interval_s: 60,
+          ...props,
+        },
+      }),
+    ],
+    {
+      freshness: {
+        status: 'fresh',
+        last_ingest_at: '2030-05-01T10:00:00.000000Z',
+        age_s: 12.5,
+        expected_interval_s: 60,
+        stale_after_s: 120,
+        offline_after_s: 600,
+        ...layer,
+      },
+    },
+  );
+
+test(
+  'freshness, thresholds, received time, delay and quality are carried through',
+  { timeout: TEST_LIMIT_MS },
+  () => {
+    const { rows, freshness } = normalizeHubStations(withFreshness());
+    assert.equal(rows[0].freshness, 'fresh');
+    assert.equal(rows[0].ageS, 12.5);
+    assert.equal(rows[0].lastIngestAt, '2030-05-01T10:00:00.000000Z');
+    assert.equal(rows[0].staleAfterS, 120);
+    assert.equal(rows[0].offlineAfterS, 600);
+    assert.deepEqual(rows[0].readings[0].quality, {
+      status: 'good',
+      confidence: 0.95,
+    });
+    assert.equal(rows[0].readings[0].delayS, 150);
+    assert.equal(rows[0].readings[0].receivedAt, '2026-01-15T12:12:30.000000Z');
+    assert.equal(freshness.status, 'fresh');
+    assert.equal(freshness.staleAfterS, 120);
+  },
+);
+
+test(
+  'a payload without freshness (an older layers API) is unknown, never fresh',
+  { timeout: TEST_LIMIT_MS },
+  () => {
+    const { rows, freshness } = normalizeHubStations(collection([feature()]));
+    assert.equal(rows[0].freshness, 'unknown');
+    assert.equal(rows[0].staleAfterS, null);
+    assert.equal(freshness.status, 'unknown');
+  },
+);
+
+test(
+  'any unrecognised freshness word becomes unknown',
+  { timeout: TEST_LIMIT_MS },
+  () => {
+    for (const word of [
+      'FRESH',
+      'fresh ',
+      'fresh<script>',
+      'current',
+      'no_data',
+      '',
+      null,
+      7,
+      {},
+      ['fresh'],
+    ]) {
+      const { rows, freshness } = normalizeHubStations(
+        withFreshness({ freshness: word }, { status: word }),
+      );
+      assert.equal(rows[0].freshness, 'unknown', JSON.stringify(word));
+      assert.equal(freshness.status, 'unknown', JSON.stringify(word));
+    }
+  },
+);
+
+test(
+  'ages, intervals and thresholds outside sane bounds are dropped',
+  { timeout: TEST_LIMIT_MS },
+  () => {
+    for (const bad of [-1, NaN, Infinity, 1e12, '12', null]) {
+      assert.equal(
+        normalizeHubStations(withFreshness({ age_s: bad })).rows[0].ageS,
+        null,
+        String(bad),
+      );
+    }
+    for (const layer of [
+      { stale_after_s: 600, offline_after_s: 120 },
+      { stale_after_s: 120, offline_after_s: 120 },
+      { stale_after_s: 0, offline_after_s: 120 },
+      { stale_after_s: 'x', offline_after_s: 600 },
+      { stale_after_s: 120, offline_after_s: undefined },
+    ]) {
+      const { rows } = normalizeHubStations(withFreshness({}, layer));
+      assert.equal(rows[0].staleAfterS, null, JSON.stringify(layer));
+      assert.equal(rows[0].offlineAfterS, null, JSON.stringify(layer));
+    }
+  },
+);
+
+test(
+  'timestamps must be canonical UTC; anything else is null and markup is never kept',
+  { timeout: TEST_LIMIT_MS },
+  () => {
+    for (const bad of [
+      '<b>now</b>',
+      '2030-05-01 10:00:00',
+      '2030-05-01T10:00:00+02:00',
+      12345,
+      '',
+    ]) {
+      assert.equal(
+        normalizeHubStations(withFreshness({ last_ingest_at: bad })).rows[0]
+          .lastIngestAt,
+        null,
+        String(bad),
+      );
+    }
+    const hostile = withFreshness();
+    hostile.features[0].properties.readings[0].quality = {
+      status: '<img onerror=x>\u0007good',
+      confidence: 5,
+    };
+    const q = normalizeHubStations(hostile).rows[0].readings[0].quality;
+    assert.equal(q.confidence, null);
+    assert.ok(!/[\u0000-\u001f]/.test(q.status));
+  },
+);
