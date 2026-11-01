@@ -230,11 +230,14 @@ export function createGhostMapsLayer({
                   Math.min(1.5, Math.max(0.6, style.iconScale ?? 1)) *
                   GHOST_MARKER_DISPLAY_SCALE,
                 verticalOrigin: Cesium.VerticalOrigin.CENTER,
-                // Not ground-clamped: a clamped marker is re-placed from terrain
-                // and 3D-tile height queries as you zoom, and it is hidden while
-                // that height is unknown. Placed on the ellipsoid and drawn over
-                // the depth buffer, it stays put; the horizon cull hides the far
-                // side instead (see `_horizon`).
+                // Not ground-clamped. A clamped billboard with a distance
+                // display condition is not drawn AT ALL in Cesium (measured in
+                // a browser: zero symbol pixels at every zoom below the
+                // hand-over distance, with or without terrain), and a clamped
+                // marker is re-placed from terrain and 3D-tile height queries
+                // as you zoom. Placed on the ellipsoid and drawn over the depth
+                // buffer it stays put; the horizon cull hides the far side
+                // instead (see `_horizon`).
                 disableDepthTestDistance: Number.POSITIVE_INFINITY,
                 // Close up: the symbol. Far away it hands over to the dot
                 // below, so a dense region does not smear into one blob.
