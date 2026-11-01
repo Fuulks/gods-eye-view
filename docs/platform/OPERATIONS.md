@@ -3,6 +3,48 @@
 The platform is optional. Without `GEV_DATABASE_URL` God's Eye View runs
 exactly as before and `/api/platform/health` answers `{configured:false}`.
 
+## Quick start: every command, in order
+
+Run from the checkout on the home server. This assumes the Docker setup from
+the README. Replace `PASSWORD` with the value `openssl rand -hex 16` prints.
+
+```bash
+git fetch origin && git checkout c3-review-fixes && git pull
+```
+
+```bash
+openssl rand -hex 16
+```
+
+```bash
+cat >> .env <<'EOF2'
+GEV_DB_PASSWORD=PASSWORD
+GEV_DATABASE_URL=postgres://gev:PASSWORD@postgres:5432/gev
+EOF2
+```
+
+```bash
+env UID=$(id -u) GID=$(id -g) docker compose --profile platform up -d postgres
+```
+
+```bash
+env UID=$(id -u) GID=$(id -g) docker compose --profile platform up -d --build gods-eye-view
+```
+
+```bash
+docker compose --profile platform exec gods-eye-view npm run platform:migrate
+```
+
+```bash
+curl -s http://localhost:4173/api/platform/health
+```
+
+`--build` is required the first time: the `pg` driver is new and the image
+holds `node_modules`. Always pass `--profile platform` on later `up`, `down`,
+`logs` and `ps` commands, or compose ignores the database service. Never run
+`docker compose down -v`: it deletes the `gev-pgdata` volume, which is the
+database.
+
 ## First start
 
 1. Choose a password and save it. The easiest way is the in-app POWER UP
