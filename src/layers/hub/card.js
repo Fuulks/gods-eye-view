@@ -3,10 +3,10 @@
  * it is not a safe or accessible home for multi-line station detail). Everything hub-supplied reaches the page
  * through createElement and textContent only, never as markup. Times are UTC ISO strings ending in Z.
  */
+import { t } from '../../i18n/index.js';
 import { originColor, originLabel } from './model.js';
 import { classifyStation, formatAge } from './freshness.js';
 
-const msg = (text) => text;
 const STATE_TEXT = Object.freeze({
   fresh: 'FRESH',
   stale: 'STALE',
@@ -15,9 +15,9 @@ const STATE_TEXT = Object.freeze({
 });
 
 function when(iso, nowWallMs) {
-  if (!iso) return msg('unknown');
-  const t = Date.parse(iso);
-  const rel = Number.isFinite(t) ? formatAge((nowWallMs - t) / 1000) : null;
+  if (!iso) return t('unknown');
+  const ms = Date.parse(iso);
+  const rel = Number.isFinite(ms) ? formatAge((nowWallMs - ms) / 1000) : null;
   return rel ? `${iso} (${rel} ago)` : iso;
 }
 
@@ -44,15 +44,15 @@ export function stationCardModel({
       ? `${status} (${offlineFor ? `no data for ${offlineFor}` : 'no recent data'})`
       : status;
   const lines = [
-    `${msg('Freshness')}: ${statusText}${view.hubCurrent ? '' : ` · ${msg('hub not reachable')}`}`,
-    `${msg('Age')}: ${view.ageS === null ? msg('unknown') : (formatAge(view.ageS) ?? msg('unknown'))}`,
-    `${msg('Last ingest')}: ${when(row.lastIngestAt, nowWallMs)}`,
-    `${msg('Expected interval')}: ${
+    `${t('Freshness')}: ${statusText}${view.hubCurrent ? '' : ` · ${t('hub not reachable')}`}`,
+    `${t('Age')}: ${view.ageS === null ? t('unknown') : (formatAge(view.ageS) ?? t('unknown'))}`,
+    `${t('Last ingest')}: ${when(row.lastIngestAt, nowWallMs)}`,
+    `${t('Expected interval')}: ${
       Number.isFinite(row.expectedIntervalS)
-        ? (formatAge(row.expectedIntervalS) ?? msg('unknown'))
-        : msg('unknown')
+        ? (formatAge(row.expectedIntervalS) ?? t('unknown'))
+        : t('unknown')
     }`,
-    `${msg('Position approximate')}${
+    `${t('Position approximate')}${
       row.precisionM ? ` (±${Math.round(row.precisionM / 2)} m)` : ''
     }`,
   ];
@@ -63,12 +63,12 @@ export function stationCardModel({
       : '';
     return [
       `${r.sensorId} · ${r.metric}: ${r.value}${r.unit ? ` ${r.unit}` : ''}${q}${c}`,
-      `${msg('Observed')}: ${when(r.observedAt, nowWallMs)}`,
-      `${msg('Received')}: ${when(r.receivedAt, nowWallMs)}`,
-      `${msg('Delay')}: ${
+      `${t('Observed')}: ${when(r.observedAt, nowWallMs)}`,
+      `${t('Received')}: ${when(r.receivedAt, nowWallMs)}`,
+      `${t('Delay')}: ${
         Number.isFinite(r.delayS)
-          ? (formatAge(Math.max(0, r.delayS)) ?? msg('unknown'))
-          : msg('unknown')
+          ? (formatAge(Math.max(0, r.delayS)) ?? t('unknown'))
+          : t('unknown')
       }`,
     ];
   });

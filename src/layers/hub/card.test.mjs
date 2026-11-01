@@ -96,3 +96,17 @@ test('card shows offline and stale as such', TIMEOUT, () => {
   assert.equal(off.status, 'OFFLINE (no data for 12 min)');
   assert.doesNotMatch(off.status, /down|dead|broken|device/i);
 });
+
+test('card labels follow the active locale', TIMEOUT, async () => {
+  const { setLocale } = await import('../../i18n/index.js');
+  try {
+    setLocale('de');
+    const m = stationCardModel(base);
+    assert.match(m.lines.join('\n'), /Alter: /);
+    assert.match(m.lines.join('\n'), /Letzte Aufnahme: /);
+    assert.match(m.sensors[0][3], /^Verzögerung: /);
+  } finally {
+    setLocale('en');
+  }
+  assert.match(stationCardModel(base).lines.join('\n'), /Age: /);
+});
