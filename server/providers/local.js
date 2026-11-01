@@ -27,6 +27,7 @@ import { weatherProxy } from './weather.js';
 import { firePerimetersProxy } from './firePerimeters.js';
 import { gnssIntegrityProxy } from './gnssIntegrity.js';
 import { ghostMapsProxy } from './ghostMaps.js';
+import { hubProxy } from './hub.js';
 import { cycloneProxy } from './cyclones.js';
 import { windProxy } from './wind.js';
 
@@ -66,6 +67,7 @@ function localProviderPlugins({ realtime, gemini } = {}) {
     firePerimetersProxy(),
     gnssIntegrityProxy(),
     ghostMapsProxy(),
+    hubProxy(),
     keySetupEndpoint(),
   ];
 }
