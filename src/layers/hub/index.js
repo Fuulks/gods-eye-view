@@ -59,6 +59,8 @@ export function createHubStationsLayer({
   let _lastSuccessMs = null;
   let _lastSuccessWallMs = null;
   let _timer = null;
+  let _manager = null;
+  let _paintedText = null;
   let _handler = null;
   let _selectedId = null;
   let _panel = null;
@@ -119,6 +121,18 @@ export function createHubStationsLayer({
       lastSuccessWallMs: _lastSuccessWallMs,
     });
     renderCard(nowMs);
+    repaintRow();
+  }
+
+  /**
+   * The layer row's text is redrawn by the layer panel, which only does so when the manager publishes activity (after
+   * a poll finishes). The 1 s tick changes `layer.source` on its own, so ask the manager to repaint when it changed;
+   * without this the row shows NOT CURRENT only when the next poll attempt ends, up to a poll period late.
+   */
+  function repaintRow() {
+    if (layer.source === _paintedText) return;
+    _paintedText = layer.source;
+    _manager?.refreshLayerStats?.();
   }
 
   function renderCard(nowMs = now()) {
@@ -189,6 +203,12 @@ export function createHubStationsLayer({
     icon: '📡',
     source: hubSourceText(null),
     updateInterval: HUB_POLL_MS,
+
+    /** @param {object|null} dataManager DataLayerManager; called once the manager exists (src/app/data.js). */
+    attachDataManager(dataManager) {
+      _manager = dataManager || null;
+      _paintedText = layer.source;
+    },
 
     init(viewer) {
       if (_viewer) throw new Error('Hub stations layer is already initialized');
