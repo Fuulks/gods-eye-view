@@ -1,6 +1,6 @@
 # KNOWN ISSUES
 
-Updated: November 1, 2026
+Updated: November 2, 2026
 
 This file tracks active runtime issues only.
 
@@ -20,17 +20,20 @@ Context:
 
 ---
 
-### Vegvesen CCTV height tests are order-dependent
-Status: Open (upstream, not caused by the OneIntOS hub layer)
+### 24 unit tests are cancelled on Node 22 (Vegvesen CCTV, request services, places)
+Status: Open (only seen outside the supported Node range; same on `main` without the OneIntOS hub changes)
 
 Context:
-- 24 Vegvesen CCTV height-lookup tests pass when run alone but fail in the full `npm test` run with "Promise resolution is still pending but the event loop has already resolved".
-- Observed on Node 22 with identical failures on the base commit and on the hub branch; CI on Node 24.14.0 and 26.x passed for the hub branch, so the failure may be specific to the older Node.
-- Suspected cause: shared module state or a pending promise left by an earlier test file. Not investigated.
+- On Node 22.x, 24 tests are reported as cancelled with "Promise resolution is still pending but the event loop has already resolved", and `npm test` exits 1 although 0 fail: 19 in `src/data/cctvVegvesen.test.mjs`, 4 in `src/services/requests.test.mjs` and 1 in `src/tools/places.test.mjs`.
+- They are not order-dependent: each of the three files cancels the same tests when run alone (`node --test <file>`).
+- They are identical on `main` (`b995064d`, before the OneIntOS station-row repaint) and on the branch that changed the hub layer, so the hub layer does not cause them (checked for the `requests` and `places` files before and after that change; the Vegvesen file is checked on both too).
+- `package.json` supports Node >=24.14.0 <25 or >=26; Node 22 is outside that range. CI on Node 24.14.0 and 26.x passes, so this looks specific to running on an unsupported Node. Cause not investigated.
+- The cancelled tests wait on promises that depend on stalled fetches or timers (for example `requests.test.mjs:58`, a stalled capability probe that only an abort or a short timeout settles); a timer that is not kept alive would explain the message. Unconfirmed.
 
 Next iteration candidates:
-- Reproduce on Node 24.14.0, then bisect by test file order.
-- Isolate or reset the height-lookup cache between tests.
+- Run the three files on Node 24.14.0 locally to confirm the Node 22 link, then find which timer or signal is not keeping the event loop alive.
+
+---
 
 ### Street traffic can be slow/uneven when panning across dense city blocks
 Status: Open (partially mitigated)
