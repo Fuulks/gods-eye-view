@@ -458,3 +458,40 @@ test(
     assert.equal(h.body.children.length, 1);
   },
 );
+
+test(
+  'the layer row is repainted by the 1 s tick when its text changes, with no poll finishing',
+  TIMEOUT,
+  async () => {
+    const h = harness();
+    // Stands in for the layer panel: it redraws the row from layer.source only when the manager is asked to.
+    const painted = [];
+    const manager = { refreshLayerStats: () => painted.push(h.layer.source) };
+    h.layer.attachDataManager?.(manager);
+    await h.layer.update();
+    painted.length = 0;
+    h.advance(1000);
+    h.advance(11000); // 12 s after the last success: still current
+    assert.deepEqual(painted, [], 'an unchanged text is not repainted');
+    h.advance(1000); // one tick past the 12 s deadline, no poll has finished
+    assert.match(painted.at(-1) ?? '', /NOT CURRENT/);
+    const count = painted.length;
+    h.advance(1000);
+    assert.equal(painted.length, count, 'the same text is not repainted again');
+  },
+);
+
+test(
+  'a detached manager is never called and a missing one is fine',
+  TIMEOUT,
+  async () => {
+    const h = harness();
+    const calls = [];
+    h.layer.attachDataManager?.({ refreshLayerStats: () => calls.push(1) });
+    h.layer.attachDataManager?.(null);
+    await h.layer.update();
+    h.advance(13000);
+    assert.equal(calls.length, 0);
+    assert.match(h.layer.source, /NOT CURRENT/);
+  },
+);
