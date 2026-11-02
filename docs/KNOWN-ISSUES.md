@@ -20,18 +20,19 @@ Context:
 
 ---
 
-### 24 unit tests are cancelled on Node 22 (Vegvesen CCTV, request services, places)
-Status: Open (only seen outside the supported Node range; same on `main` without the OneIntOS hub changes)
+### 24 unit tests are cancelled on Node 22 (not on a supported Node)
+Status: Open, informational (seen only on a local Node outside the supported range)
 
 Context:
-- On Node 22.x, 24 tests are reported as cancelled with "Promise resolution is still pending but the event loop has already resolved", and `npm test` exits 1 although 0 fail: 19 in `src/data/cctvVegvesen.test.mjs`, 4 in `src/services/requests.test.mjs` and 1 in `src/tools/places.test.mjs`.
-- They are not order-dependent: each of the three files cancels the same tests when run alone (`node --test <file>`).
-- They are identical on `main` (`b995064d`, before the OneIntOS station-row repaint) and on the branch that changed the hub layer, so the hub layer does not cause them (checked for the `requests` and `places` files before and after that change; the Vegvesen file is checked on both too).
-- `package.json` supports Node >=24.14.0 <25 or >=26; Node 22 is outside that range. CI on Node 24.14.0 and 26.x passes, so this looks specific to running on an unsupported Node. Cause not investigated.
-- The cancelled tests wait on promises that depend on stalled fetches or timers (for example `requests.test.mjs:58`, a stalled capability probe that only an abort or a short timeout settles); a timer that is not kept alive would explain the message. Unconfirmed.
+- `package.json` supports Node >=24.14.0 <25 or >=26. The 24 cancellations were observed only on a local run with Node 22.23.4, which is outside that range. Results from an unsupported Node are indicative only; CI is the source of truth.
+- CI on supported Node (24.14.0 and 26.x) passes with no cancellations.
+- A local run on a supported Node also passes: on Node 24.22.1 (offline, loopback only) `cctvVegvesen.test.mjs` is 31 pass, `requests.test.mjs` 7 pass and `places.test.mjs` 3 pass, none cancelled, and the whole `npm test` exits 0.
+- On Node 22.23.4 the same three files report "Promise resolution is still pending but the event loop has already resolved": 19 cancelled in `src/data/cctvVegvesen.test.mjs`, 4 in `src/services/requests.test.mjs` and 1 in `src/tools/places.test.mjs`, and `npm test` exits 1 although 0 fail. They cancel when each file runs alone (so they are not order-dependent) and are identical on `main` without the OneIntOS hub changes.
+- Node 26.x was not run locally (not installed here); its result is CI's.
+- Cause on Node 22 not investigated; no claim is made about it.
 
 Next iteration candidates:
-- Run the three files on Node 24.14.0 locally to confirm the Node 22 link, then find which timer or signal is not keeping the event loop alive.
+- None needed while the supported range excludes Node 22. If Node 22 is ever supported again, find which timer or signal fails to keep the event loop alive.
 
 ---
 
