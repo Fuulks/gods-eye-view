@@ -3087,5 +3087,13 @@
   "Edit anchors, data packs and shot details": "Змінити якорі, пакети даних і параметри кадрів",
   "Download this scene as JSON or an asset bundle": "Завантажити цю сцену у форматі JSON або архівом ресурсів",
   "OneIntOS hub unavailable": "Хаб OneIntOS недоступний",
-  "OneIntOS Stations": "OneIntOS Stations"
+  "OneIntOS Stations": "OneIntOS Stations",
+  "Freshness": "Актуальність",
+  "hub not reachable": "хаб недоступний",
+  "Age": "Вік",
+  "Last ingest": "Останній прийом",
+  "Expected interval": "Очікуваний інтервал",
+  "Position approximate": "Положення приблизне",
+  "Received": "Отримано",
+  "Delay": "Затримка"
 }

@@ -3087,5 +3087,13 @@
   "Edit anchors, data packs and shot details": "Изменить якоря, пакеты данных и параметры кадров",
   "Download this scene as JSON or an asset bundle": "Скачать эту сцену в формате JSON или архивом ресурсов",
   "OneIntOS hub unavailable": "Хаб OneIntOS недоступен",
-  "OneIntOS Stations": "OneIntOS Stations"
+  "OneIntOS Stations": "OneIntOS Stations",
+  "Freshness": "Актуальность",
+  "hub not reachable": "хаб недоступен",
+  "Age": "Возраст",
+  "Last ingest": "Последний приём",
+  "Expected interval": "Ожидаемый интервал",
+  "Position approximate": "Положение приблизительное",
+  "Received": "Получено",
+  "Delay": "Задержка"
 }

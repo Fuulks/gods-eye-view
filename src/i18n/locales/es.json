@@ -3017,5 +3017,13 @@
   "Edit anchors, data packs and shot details": "Edita anclas, paquetes de datos y detalles de los planos",
   "Download this scene as JSON or an asset bundle": "Descarga esta escena como JSON o como paquete de recursos",
   "OneIntOS hub unavailable": "Hub de OneIntOS no disponible",
-  "OneIntOS Stations": "OneIntOS Stations"
+  "OneIntOS Stations": "OneIntOS Stations",
+  "Freshness": "Actualidad",
+  "hub not reachable": "hub no accesible",
+  "Age": "Antigüedad",
+  "Last ingest": "Última recepción",
+  "Expected interval": "Intervalo esperado",
+  "Position approximate": "Posición aproximada",
+  "Received": "Recibido",
+  "Delay": "Retraso"
 }

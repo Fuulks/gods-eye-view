@@ -1,6 +1,6 @@
 # KNOWN ISSUES
 
-Updated: September 22, 2026
+Updated: November 1, 2026
 
 This file tracks active runtime issues only.
 
@@ -9,6 +9,16 @@ For the roadmap and open backlog, see the repository issue tracker.
 ---
 
 ## Open
+
+### OneIntOS station card strings are machine-translated
+Status: Open (needs native review)
+
+Context:
+- The 8 UI strings added for the station card (Freshness, hub not reachable, Age,
+  Last ingest, Expected interval, Position approximate, Received, Delay) were
+  machine-translated into the 10 locale files and need native-speaker review.
+
+---
 
 ### Vegvesen CCTV height tests are order-dependent
 Status: Open (upstream, not caused by the OneIntOS hub layer)

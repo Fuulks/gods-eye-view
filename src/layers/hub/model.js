@@ -48,9 +48,14 @@ export function createHubOverlayEntry({ row, position }) {
 }
 
 /** JSON-safe analyst record for one station; no Cesium types. */
-export function mapAnalystRecord(row) {
+export function mapAnalystRecord(row, view = null) {
   return {
     id: row.id,
+    // How current the readings are, so an analyst never takes old data for current data.
+    freshness: view?.state ?? 'unknown',
+    current: view?.current === true,
+    ageS: Number.isFinite(view?.ageS) ? Math.round(view.ageS) : null,
+    lastIngestAt: row.lastIngestAt ?? null,
     origin: row.origin,
     lat: row.lat,
     lon: row.lon,

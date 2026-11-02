@@ -22,6 +22,59 @@ function finite(value) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
+/** The only freshness words this client accepts; anything else is treated as `unknown`, never as fresh. */
+export const FRESHNESS_STATUSES = Object.freeze([
+  'fresh',
+  'stale',
+  'offline',
+  'unknown',
+]);
+const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/;
+const TEN_YEARS_S = 10 * 366 * 86400;
+
+function isoUtc(value) {
+  return typeof value === 'string' && ISO_UTC.test(value) ? value : null;
+}
+
+function seconds(value, max = TEN_YEARS_S) {
+  const n = finite(value);
+  return n !== null && n >= 0 && n <= max ? n : null;
+}
+
+function freshnessStatus(value) {
+  return FRESHNESS_STATUSES.includes(value) ? value : 'unknown';
+}
+
+/** Layer-level freshness block and thresholds from the collection; null fields when absent or inconsistent. */
+function normalizeLayerFreshness(raw) {
+  const f = raw && typeof raw === 'object' ? raw : {};
+  const stale = seconds(f.stale_after_s);
+  const offline = seconds(f.offline_after_s);
+  const thresholdsOk =
+    stale !== null && offline !== null && stale > 0 && stale < offline;
+  return {
+    status: freshnessStatus(f.status),
+    ageS: seconds(f.age_s),
+    lastIngestAt: isoUtc(f.last_ingest_at),
+    expectedIntervalS: seconds(f.expected_interval_s),
+    staleAfterS: thresholdsOk ? stale : null,
+    offlineAfterS: thresholdsOk ? offline : null,
+  };
+}
+
+function normalizeQuality(raw) {
+  if (!raw || typeof raw !== 'object')
+    return { status: null, confidence: null };
+  const confidence = finite(raw.confidence);
+  return {
+    status: cleanText(raw.status, 16),
+    confidence:
+      confidence !== null && confidence >= 0 && confidence <= 1
+        ? confidence
+        : null,
+  };
+}
+
 function normalizeReading(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const sensorId =
@@ -36,13 +89,16 @@ function normalizeReading(raw) {
     metric,
     value,
     unit: cleanText(raw.unit, 16),
-    observedAt: cleanText(raw.observed_at, 40),
+    observedAt: isoUtc(raw.observed_at),
+    receivedAt: isoUtc(raw.received_at),
+    delayS: finite(raw.delay_s),
+    quality: normalizeQuality(raw.quality),
   };
 }
 
 /**
  * @param {unknown} collection A layers-API `FeatureCollection`.
- * @returns {{origin: string, rows: Array<object>, dropped: number} | null} null when the payload is not a collection.
+ * @returns {{origin: string, rows: Array<object>, dropped: number, freshness: object} | null} null when the payload is not a collection.
  */
 export function normalizeHubStations(collection) {
   if (!collection || typeof collection !== 'object') return null;
@@ -55,7 +111,9 @@ export function normalizeHubStations(collection) {
     ? collection.origin
     : null;
   if (!origin) return null; // a collection that does not say where its data comes from is not shown
+  const layerFreshness = normalizeLayerFreshness(collection.freshness);
   const rows = [];
+  const seen = new Set();
   let dropped = Number.isFinite(collection.dropped_invalid)
     ? Math.max(0, Math.floor(collection.dropped_invalid))
     : 0;
@@ -78,6 +136,11 @@ export function normalizeHubStations(collection) {
       dropped += 1; // includes stations with no configured position: nothing to draw
       continue;
     }
+    if (seen.has(id)) {
+      dropped += 1; // a repeated id would make two entities with one identity
+      continue;
+    }
+    seen.add(id);
     const props =
       feature.properties && typeof feature.properties === 'object'
         ? feature.properties
@@ -94,7 +157,14 @@ export function normalizeHubStations(collection) {
       origin,
       precisionM: precision !== null && precision > 0 ? precision : null,
       readings,
+      // Freshness is per station; a missing or unknown word means "not current".
+      freshness: freshnessStatus(props.freshness),
+      lastIngestAt: isoUtc(props.last_ingest_at),
+      ageS: seconds(props.age_s),
+      expectedIntervalS: seconds(props.expected_interval_s),
+      staleAfterS: layerFreshness.staleAfterS,
+      offlineAfterS: layerFreshness.offlineAfterS,
     });
   }
-  return { origin, rows, dropped };
+  return { origin, rows, dropped, freshness: layerFreshness };
 }

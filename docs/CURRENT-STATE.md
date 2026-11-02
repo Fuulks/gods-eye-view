@@ -5503,6 +5503,7 @@ request viewbox and continues searching without that geographic preference.
 - **Untrusted data.** `src/layers/hub/records.js` keeps only known fields, bounds and flattens every string, drops stations without a valid id and position (counting them), and refuses a collection that does not state `live`, `simulated` or `replayed`. The hub family contains no HTML-injecting API; `src/layers/hub/noInnerHtml.test.mjs` enforces it.
 - **Share links.** The layer owns token `6` (`enabled-only`).
 - **Voice.** Out of scope: the layer is listed in `VOICE_OFF_LAYERS`, so it adds nothing to the Realtime tool schema or prompt (the prompt budget in `pointAndAsk.test.mjs` has 34 characters of headroom).
+- **Freshness and station card.** Each station is labelled FRESH/STALE/OFFLINE from the hub's server-clock ingest time plus elapsed time; after 12 s without a successful 5 s poll the layer and labels say NOT CURRENT. Clicking a station opens a text-only card (`src/layers/hub/card.js`). Details in `docs/ONEINTOS-HUB.md`.
 - **Validation.** `server/providers/hub.test.mjs` (proxy, with a fake upstream; every request and test is time-bounded), `src/layers/hub/*.test.mjs` (records, source, no-innerHTML boundary), plus the updated layer-state and catalog count tests.
 
 ### Import Your Own Files (October 2026)
