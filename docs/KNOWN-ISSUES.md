@@ -1,6 +1,6 @@
 # KNOWN ISSUES
 
-Updated: November 1, 2026
+Updated: November 2, 2026
 
 This file tracks active runtime issues only.
 
@@ -20,17 +20,21 @@ Context:
 
 ---
 
-### Vegvesen CCTV height tests are order-dependent
-Status: Open (upstream, not caused by the OneIntOS hub layer)
+### 24 unit tests are cancelled on Node 22 (not on a supported Node)
+Status: Open, informational (seen only on a local Node outside the supported range)
 
 Context:
-- 24 Vegvesen CCTV height-lookup tests pass when run alone but fail in the full `npm test` run with "Promise resolution is still pending but the event loop has already resolved".
-- Observed on Node 22 with identical failures on the base commit and on the hub branch; CI on Node 24.14.0 and 26.x passed for the hub branch, so the failure may be specific to the older Node.
-- Suspected cause: shared module state or a pending promise left by an earlier test file. Not investigated.
+- `package.json` supports Node >=24.14.0 <25 or >=26. The 24 cancellations were observed only on a local run with Node 22.23.4, which is outside that range. Results from an unsupported Node are indicative only; CI is the source of truth.
+- CI on supported Node (24.14.0 and 26.x) passes with no cancellations.
+- A local run on a supported Node also passes: on Node 24.22.1 (offline, loopback only) `cctvVegvesen.test.mjs` is 31 pass, `requests.test.mjs` 7 pass and `places.test.mjs` 3 pass, none cancelled, and the whole `npm test` exits 0.
+- On Node 22.23.4 the same three files report "Promise resolution is still pending but the event loop has already resolved": 19 cancelled in `src/data/cctvVegvesen.test.mjs`, 4 in `src/services/requests.test.mjs` and 1 in `src/tools/places.test.mjs`, and `npm test` exits 1 although 0 fail. They cancel when each file runs alone (so they are not order-dependent) and are identical on `main` without the OneIntOS hub changes.
+- Node 26.x was not run locally (not installed here); its result is CI's.
+- Cause on Node 22 not investigated; no claim is made about it.
 
 Next iteration candidates:
-- Reproduce on Node 24.14.0, then bisect by test file order.
-- Isolate or reset the height-lookup cache between tests.
+- None needed while the supported range excludes Node 22. If Node 22 is ever supported again, find which timer or signal fails to keep the event loop alive.
+
+---
 
 ### Street traffic can be slow/uneven when panning across dense city blocks
 Status: Open (partially mitigated)
