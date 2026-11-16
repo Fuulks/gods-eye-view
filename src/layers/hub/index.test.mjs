@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as Cesium from 'cesium';
 import { createHubStationsLayer } from './index.js';
+import { bindFakeDraw } from '../../testSupport/fakeDrawPort.mjs';
 import { claimPointer, releasePointer } from '../../data/inputOwnership.js';
 
 const TIMEOUT = { timeout: 10000 };
@@ -61,6 +61,11 @@ function fakeEl(tag) {
 }
 const texts = (el) => [el.textContent, ...el.children.flatMap(texts)];
 
+const setOf = (draw, kind) =>
+  [...draw.sets.values()].find(
+    (r) => !r.disposed && r.spec.id.endsWith(`:${kind}`),
+  );
+
 function harness({ rows = [row()], origin = 'live' } = {}) {
   const t = { mono: 1000, wall: Date.parse('2026-11-01T10:00:05Z') };
   const state = { fail: false, rows, origin };
@@ -85,31 +90,24 @@ function harness({ rows = [row()], origin = 'live' } = {}) {
     },
   };
   let click = null;
-  const handler = {
-    setInputAction(fn) {
+  const inputPort = {
+    onClick(fn) {
       click = fn;
-    },
-    destroy() {
-      calls.destroyed = true;
+      return () => {
+        click = null;
+        calls.destroyed = true;
+      };
     },
   };
   let picked = null;
   const picking = {
     registerPickOwner: (id, fn) => calls.owners.push([id, fn]),
     unregisterPickOwner: (id) => calls.unowned.push(id),
-    resolvePickId: () => picked,
   };
   const body = fakeEl('body');
   const doc = { body, createElement: fakeEl };
-  const viewer = {
-    dataSources: {
-      add(ds) {
-        calls.ds = ds;
-      },
-      remove() {},
-    },
-    scene: { canvas: {}, pick: () => ({}) },
-  };
+  const viewer = {};
+  const { draw } = bindFakeDraw(viewer);
   const layer = createHubStationsLayer({
     source,
     overlayHost,
@@ -121,7 +119,7 @@ function harness({ rows = [row()], origin = 'live' } = {}) {
       return calls.timers.length;
     },
     clearTimer: (h) => calls.cleared.push(h),
-    createInputHandler: () => handler,
+    inputFor: () => inputPort,
     doc,
   });
   layer.init(viewer);
@@ -131,11 +129,18 @@ function harness({ rows = [row()], origin = 'live' } = {}) {
     t,
     state,
     calls,
+    draw,
     body,
     pick: (id) => {
       picked = id;
     },
-    click: () => click({ position: { x: 1, y: 1 } }),
+    click: () =>
+      click?.({
+        screenPosition: { x: 1, y: 1 },
+        drawHit: picked
+          ? { set: setOf(draw, 'points')?.spec.id, id: picked }
+          : null,
+      }),
     label: () => calls.entries.at(-1)[0].title,
     advance(ms) {
       t.mono += ms;
@@ -337,8 +342,8 @@ test(
   async () => {
     const h = harness();
     await h.layer.update();
-    const entity = () => h.calls.ds.entities.getById('hub-station:st-1');
-    const alpha = () => entity().point.color.getValue().alpha;
+    const alpha = () =>
+      setOf(h.draw, 'points').items.get('hub-station:st-1').color[3];
     assert.equal(alpha(), 1);
     h.advance(130000);
     assert.ok(alpha() < 1, 'stale is dimmed');
@@ -361,7 +366,7 @@ test(
       h.layer.getAnalystRecords().map((r) => r.id),
       ['b', 'c'],
     );
-    const ids = h.calls.ds.entities.values.map((e) => e.id).sort();
+    const ids = [...setOf(h.draw, 'points').items.keys()].sort();
     assert.deepEqual(ids, ['hub-station:b', 'hub-station:c']);
     assert.equal(
       h.calls.entries.at(-1).length,
@@ -384,8 +389,7 @@ test(
     assert.match(h.layer.source, /NOT CURRENT/);
     assert.match(h.label(), /^LIVE · st-1 · NOT CURRENT/);
     assert.ok(
-      h.calls.ds.entities.getById('hub-station:st-1').point.color.getValue()
-        .alpha < 1,
+      setOf(h.draw, 'points').items.get('hub-station:st-1').color[3] < 1,
     );
   },
 );
@@ -495,3 +499,36 @@ test(
     assert.match(h.layer.source, /NOT CURRENT/);
   },
 );
+
+test(
+  'each station draws a clamped point and an approximate-area ring, hidden while disabled and disposed on destroy',
+  TIMEOUT,
+  async () => {
+    const h = harness({ rows: [row({ precisionM: 200 })] });
+    await h.layer.update();
+    const points = setOf(h.draw, 'points');
+    const rings = setOf(h.draw, 'rings');
+    assert.equal(points.spec.clampTo, 'both');
+    assert.equal(points.show, true);
+    const ring = rings.items.get('hub-station:st-1');
+    assert.equal(ring.geometry.kind, 'ellipse');
+    assert.equal(ring.geometry.semiMajor, 500, 'the ring is never under 500 m');
+    h.layer.disable();
+    assert.equal(points.show, false);
+    assert.equal(rings.show, false);
+    h.layer.destroy();
+    assert.equal(points.disposed, true);
+    assert.equal(rings.disposed, true);
+  },
+);
+
+test('a click on a hit of another layer closes the card', TIMEOUT, async () => {
+  const h = harness();
+  await h.layer.update();
+  h.pick('hub-station:st-1');
+  h.click();
+  assert.equal(h.body.children.length, 1);
+  h.pick('other:1');
+  h.click();
+  assert.equal(h.body.children.length, 0);
+});

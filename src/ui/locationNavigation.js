@@ -1,4 +1,5 @@
-import * as Cesium from 'cesium';
+import { findCamera } from '../render/rendererOf.js';
+import { stopFollowing } from '../data/followed.js';
 import { t } from '../i18n/index.js';
 import { createStateChannel } from '../app/stateChannel.js';
 import { LocationControls } from './location.js';
@@ -32,7 +33,6 @@ export class LocationNavigation {
     this._cancelGlobeReset = null;
     this._worldJumpActive = false;
     this.orbitController = new services.OrbitController(viewer);
-    this._orbitIndicator = null;
     this._locationState = createStateChannel(
       () => this._locationLookup?.getState() || null,
     );
@@ -111,26 +111,19 @@ export class LocationNavigation {
 
   /** Show, or with null clear, the announced error under the search field. */
   _setLocationSearchError(message) {
-    const input = this._locationSearch;
-    const error = this._locationSearchError;
-    if (error) error.textContent = message || '';
-    if (!input) return;
-    if (message) {
-      input.setAttribute('aria-invalid', 'true');
-      if (error?.id) input.setAttribute('aria-describedby', error.id);
-    } else {
-      input.removeAttribute('aria-invalid');
-      input.removeAttribute('aria-describedby');
-    }
+    this._locationControls?.setSearchError(message);
   }
 
   _initLocationBar() {
     const { CITY_POIS, searchAndFlyTo, LocationSearch } = this.services;
+    // An open field stays open in the new controls.
+    const searchExpanded = Boolean(this._locationControls?.searchExpanded);
     this._locationControls?.destroy();
     this._locationLookupUnsubscribe?.();
     this._locationLookup?.destroy();
     this._locationLookup = new LocationSearch({
       input: this._locationSearch,
+      setSearching: (active) => this._locationControls?.setSearching(active),
       begin: () => this._beginDeferredNavigation('location'),
       isCurrent: (generation) =>
         !this._disposed && generation === this._navigationGeneration,
@@ -146,22 +139,11 @@ export class LocationNavigation {
       },
       onError: (error) => console.error('[Search] Geocoding failed:', error),
     });
-    this._locationLookupUnsubscribe = this._locationLookup.subscribe(
-      ({ initial, change }) => {
-        this._locationState.publish(initial ? { type: 'reset' } : change);
-      },
-    );
     this._locationControls = new LocationControls({
       elements: {
-        pills: this._locationPills,
-        poiRow: this._poiRow,
-        divider: this._locationBarDivider,
         search: this._locationSearch,
-        searchToggle: this._searchToggle,
-        resetButtons: [this._resetGlobeBtn, this._cockpitResetGlobeBtn],
-        statusCity: this._locationMiniCity,
-        statusPoi: this._locationMiniPoi,
       },
+      publish: (view) => this._publishLocation?.(view),
       cities: CITY_POIS,
       getExpandedCity: () => this._expandedCityId,
       onCity: (id) => this._onCityPillClick(id),
@@ -169,7 +151,17 @@ export class LocationNavigation {
       onSearch: (query) => this._locationLookup.run(query),
       onSearchEdit: () => this._setLocationSearchError(null),
       onReset: () => this.resetToGlobeView(),
+      searchExpanded,
     });
+    // The new lookup's reset settles a replaced lookup's search through the
+    // new controls, so it subscribes once they are in place.
+    this._locationLookupUnsubscribe = this._locationLookup.subscribe(
+      ({ initial, change }) => {
+        this._locationState.publish(initial ? { type: 'reset' } : change);
+      },
+    );
+    this._connectLocation?.(this._locationControls);
+    this._connectGlobeReset?.(this._locationControls);
   }
 
   _beginWorldJumpTransition() {
@@ -298,7 +290,7 @@ export class LocationNavigation {
   }
 
   _initOrbit() {
-    this._orbitIndicator = this._locationControls.createOrbitIndicator();
+    this._locationControls?.showOrbit(false);
   }
 
   _toggleOrbit() {
@@ -313,13 +305,13 @@ export class LocationNavigation {
       pitch: this._currentPoi?.pitch || -30,
     });
 
-    this._orbitIndicator.classList.toggle('active', isActive);
+    this._locationControls?.showOrbit(isActive);
   }
 
   _stopOrbit() {
     if (this.orbitController.active) {
       this.orbitController.stop();
-      this._orbitIndicator.classList.remove('active');
+      this._locationControls?.showOrbit(false);
     }
   }
 
@@ -376,9 +368,10 @@ export class LocationNavigation {
     } catch {
       /* best-effort release */
     }
-    this.viewer.trackedEntity = undefined;
-    this.viewer.camera.cancelFlight();
-    this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
+    stopFollowing(this.viewer);
+    const camera = findCamera(this.viewer);
+    camera?.cancelFlight();
+    camera?.release();
     this._beginWorldJumpTransition();
 
     let resolveReset;
@@ -393,51 +386,53 @@ export class LocationNavigation {
       settled = true;
       clearTimeout(timer);
       this._endWorldJumpTransition();
-      const carto = this.viewer.camera.positionCartographic;
+      const pose = findCamera(this.viewer)?.pose();
       const result = {
         ok: !cancelled,
         action: 'zoom_to_globe',
         cancelled,
         heightKm: Math.round(GLOBE_VIEW.heightM / 1000),
         centeredOn: {
-          latitude: Number(Cesium.Math.toDegrees(carto.latitude).toFixed(2)),
-          longitude: Number(Cesium.Math.toDegrees(carto.longitude).toFixed(2)),
+          latitude: Number.isFinite(pose?.lat)
+            ? Number(pose.lat.toFixed(2))
+            : null,
+          longitude: Number.isFinite(pose?.lon)
+            ? Number(pose.lon.toFixed(2))
+            : null,
         },
       };
-      this._resetGlobeBtn?.setAttribute(
-        'aria-label',
-        t('Reset to full globe view'),
-      );
-      this._cockpitResetGlobeBtn?.setAttribute(
-        'aria-label',
-        t('Reset cockpit to full globe view'),
-      );
+      this._publishGlobeResetting?.(false);
       this._globeResetPromise = null;
       this._cancelGlobeReset = null;
       resolveReset(result);
     };
     this._cancelGlobeReset = () => finish(true);
     timer = window.setTimeout(() => {
-      const height = this.viewer.camera.positionCartographic?.height;
+      const height = findCamera(this.viewer)?.pose().height;
       finish(
         !Number.isFinite(height) ||
           Math.abs(height - GLOBE_VIEW.heightM) > 1000,
       );
     }, 4200);
-    this._resetGlobeBtn?.setAttribute(
-      'aria-label',
-      t('Resetting to full globe view'),
-    );
-    this._cockpitResetGlobeBtn?.setAttribute(
-      'aria-label',
-      t('Resetting cockpit to full globe view'),
-    );
+    this._publishGlobeResetting?.(true);
     const target = flyToGlobeView(this.viewer, {
       onComplete: () => finish(false),
       onCancel: () => finish(true),
     });
     if (!target) finish(true);
     return resetPromise;
+  }
+
+  /** Settle the search field once its lookup has (LocationControls.settleSearch). */
+  settleSearch(options) {
+    this._locationControls?.settleSearch(options);
+  }
+
+  /** Close the search field; with `ifOpen`, only when it is open. */
+  closeSearch({ ifOpen = false } = {}) {
+    const controls = this._locationControls;
+    if (ifOpen && !controls?.searchExpanded) return;
+    controls?.closeSearch();
   }
 
   /** Revoke callbacks and settle owned camera work before the viewer is released. */
@@ -449,6 +444,9 @@ export class LocationNavigation {
     this._locationLookupUnsubscribe = null;
     this._locationLookup?.destroy();
     this._locationControls?.destroy();
+    this._connectLocation?.(null);
+    this._connectGlobeReset?.(null);
+    this._publishLocation?.(null);
     this._cancelGlobeReset?.();
     this._cancelGlobeReset = null;
     if (this._worldJumpActive) this._endWorldJumpTransition();

@@ -75,6 +75,7 @@ test(
       'utf8',
     );
     assert.match(src, /export function hitTestWorldOverlay/);
-    assert.match(src, /button\.textContent = item\.label/); // only the accessibility mirror uses textContent, one label per button
+    // The accessibility mirror's labels moved into the overlay's actions view,
+    // which has its own tests (worldOverlayActionsView.test.mjs).
   },
 );

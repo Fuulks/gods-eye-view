@@ -342,7 +342,7 @@ try {
     const before = {
       activeId: controller.getActiveId(),
       creditVisible: document.body.innerText.includes('Powered by Esri'),
-      globeShown: styleManager.viewer.scene.globe.show,
+      globeShown: window.__godsEyeView.viewer.scene.globe.show,
       hasLayer: Boolean(controller._imageryLayer),
     };
     provider?.errorEvent?.raiseEvent?.({ timesRetried: 0 });
@@ -369,7 +369,7 @@ try {
       activeId: controller.getActiveId(),
       lastError: controller.getState().lastError,
       creditVisible: document.body.innerText.includes('Powered by Esri'),
-      globeShown: styleManager.viewer.scene.globe.show,
+      globeShown: window.__godsEyeView.viewer.scene.globe.show,
       hasLayer: Boolean(controller._imageryLayer),
       active: [...document.querySelectorAll('.map-stack-chip')]
         .filter((chip) => chip.getAttribute('aria-pressed') === 'true')
@@ -871,6 +871,9 @@ try {
       return originalSetStack(stackId);
     };
     const switchPromise = styleManager._setMapStack('osm', { syncShare: false });
+    // The dock renders the published row on Vue's next flush.
+    const rendered = () => new Promise((resolve) => setTimeout(resolve, 0));
+    await rendered();
     const during = {
       status: document.getElementById('map-stack-status').textContent,
       active: [...document.querySelectorAll('.map-stack-chip')]
@@ -879,6 +882,7 @@ try {
     };
     release();
     await switchPromise;
+    await rendered();
     const after = {
       status: document.getElementById('map-stack-status').textContent,
       active: [...document.querySelectorAll('.map-stack-chip')]
