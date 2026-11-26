@@ -94,6 +94,8 @@ export class ShareLinkManager {
     this._bloomVersion = BLOOM_SCALE_VERSION;
     this._sharpenIntensity = 49;
     this._hudVariant = 'tactical';
+    // Sonar on beside a layout whose code cannot say so (Minimal); `hs`.
+    this._hudSonar = false;
     this._hudVisible = false;
     this._detectionMode = 'OFF';
     this._detectionDensity = 50;
@@ -124,6 +126,8 @@ export class ShareLinkManager {
     this._panelStateProvider = null;
     this._styleParamStateProvider = null;
     this._initialRestorePending = false;
+    // Who holds the hash writes (holdWrites).
+    this._writeHolds = new Set();
     // Each incoming share (start-up or a later hash navigation) gets a token;
     // only the newest one may release URL-write suppression.
     this._restoreToken = 0;
@@ -260,6 +264,9 @@ export class ShareLinkManager {
       bloomVersion: parseOr(params.get('bv'), 1),
       sharpenIntensity: parseOr(params.get('si'), 49),
       hudVariant: params.get('hud') || 'tactical',
+      // Absent in links made before it, which restore Sonar from `hud=cyber`
+      // alone.
+      hudSonar: params.get('hs') === '1',
       hudVisible: params.get('hv') === '1',
       detectionMode: restoredDetection.enabled
         ? restoredDetection.profile
@@ -345,23 +352,46 @@ export class ShareLinkManager {
     const target = globalThis.window;
     if (typeof target?.addEventListener !== 'function') return;
     const handler = () => this._handleLocationChange(onNavigate);
+    this._onNavigate = onNavigate;
     target.addEventListener('hashchange', handler);
     target.addEventListener('popstate', handler);
     this._unwatchNavigation = () => {
       target.removeEventListener('hashchange', handler);
       target.removeEventListener('popstate', handler);
       this._unwatchNavigation = null;
+      this._onNavigate = null;
     };
   }
 
+  /**
+   * Restore a share hash now, even when it is the one the address already
+   * shows: an owner that changed the view under it (Stories, after a GEV
+   * scene) hands the person's view back this way. Navigation must be watched.
+   * @param {string} hash Without the leading `#`.
+   * @returns {boolean} Whether a restore began: false when the hash is not a
+   *   share state, which a later hashchange may then try again.
+   */
+  restore(hash) {
+    if (this._destroyed || !this._onNavigate || typeof hash !== 'string')
+      return false;
+    const url = new URL(window.location.href);
+    url.hash = hash;
+    history.replaceState(history.state, '', url.href);
+    this._knownHash = null;
+    if (this._handleLocationChange(this._onNavigate)) return true;
+    this._knownHash = null;
+    return false;
+  }
+
+  /** @returns {boolean} Whether a restore began. */
   _handleLocationChange(onNavigate) {
-    if (this._destroyed) return;
+    if (this._destroyed) return false;
     const hash = window.location.hash.slice(1);
     // Back/Forward fires both popstate and hashchange for one entry.
-    if (hash === this._knownHash) return;
+    if (hash === this._knownHash) return false;
     this._knownHash = hash;
     const state = this._parseShareHash(hash);
-    if (!state) return;
+    if (!state) return false;
     this._beginIncomingRestore(state);
     onNavigate(state);
     try {
@@ -369,6 +399,7 @@ export class ShareLinkManager {
     } catch (error) {
       console.warn('[ShareLink] library restore failed:', error);
     }
+    return true;
   }
 
   /**
@@ -453,6 +484,7 @@ export class ShareLinkManager {
         bloomVersion: visualCurrent ? state.bloomVersion : undefined,
         sharpenIntensity: visualCurrent ? state.sharpenIntensity : undefined,
         hudVariant: visualCurrent ? state.hudVariant : undefined,
+        hudSonar: visualCurrent ? state.hudSonar : undefined,
         hudVisible: visualCurrent ? state.hudVisible : undefined,
         detectionMode: visualCurrent ? state.detectionMode : undefined,
         detectionDensity: visualCurrent ? state.detectionDensity : undefined,
@@ -533,7 +565,7 @@ export class ShareLinkManager {
 
   /**
    * Install the source of the entity the camera follows, used for share links:
-   * `({ nowMs }) => ({ kind, id, offset, lastKnown }) | null`, in the share
+   * `({ nowMs }) => ({ kind, id, offset, lastKnown, followed? }) | null`, in the share
    * format's terms (src/share/follow.js), with the fix as of `nowMs`.
    */
   setFollowSubjectProvider(provider) {
@@ -603,6 +635,7 @@ export class ShareLinkManager {
       this._sharpenIntensity = extras.sharpenIntensity;
     if (typeof extras.hudVariant === 'string')
       this._hudVariant = extras.hudVariant;
+    if (typeof extras.hudSonar === 'boolean') this._hudSonar = extras.hudSonar;
     if (typeof extras.hudVisible === 'boolean')
       this._hudVisible = extras.hudVisible;
     if (typeof extras.detectionMode === 'string')
@@ -675,6 +708,7 @@ export class ShareLinkManager {
         entity: { kind: subject.kind, id: subject.id },
         offset: subject.offset ?? null,
         lastKnown: subject.lastKnown ?? null,
+        followed: subject.followed === true,
       };
     }
     return shareLinkUrl(encodeShareView(state), window.location.href);
@@ -692,8 +726,35 @@ export class ShareLinkManager {
     }
   }
 
+  /**
+   * Hold the address's hash writes, for an owner that covers the view and
+   * keeps the person's camera and layers out of the address while it does
+   * (Stories, the opening's flight). Each `owner` holds and releases its own
+   * hold; once none holds, the current view is written again.
+   * @param {boolean} held
+   * @param {string} [owner]
+   */
+  holdWrites(held, owner = 'stories') {
+    if (held && !this._writesHeld && this._debounceTimer) {
+      // A view change still waiting for its debounce is written first, so
+      // the address the owner saves is the live view.
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = null;
+      this._updateHash();
+    }
+    if (held) this._writeHolds.add(owner);
+    else this._writeHolds.delete(owner);
+    if (!this._writesHeld) this._scheduleUpdate();
+    else clearTimeout(this._debounceTimer);
+  }
+
+  get _writesHeld() {
+    return this._writeHolds.size > 0;
+  }
+
   _scheduleUpdate() {
-    if (this._destroyed || this._initialRestorePending) return;
+    if (this._destroyed || this._initialRestorePending || this._writesHeld)
+      return;
     clearTimeout(this._debounceTimer);
     this._debounceTimer = setTimeout(() => this._updateHash(), DEBOUNCE_MS);
   }
@@ -711,7 +772,14 @@ export class ShareLinkManager {
       : new URL(window.location.href);
     url.hash = params.toString();
     this._knownHash = url.hash.slice(1);
-    history.replaceState(null, '', url.href);
+    // Keep the entry's state: another owner (Stories) may have stored its
+    // place there, and a hash update is not a new place.
+    history.replaceState(history.state, '', url.href);
+  }
+
+  /** Capture the live share hash without changing the current history entry. */
+  snapshotHash() {
+    return this._buildHashParams()?.toString() ?? null;
   }
 
   /** Build a deterministic snapshot without mutating history. */
@@ -735,6 +803,8 @@ export class ShareLinkManager {
     params.set('bv', Math.round(this._bloomVersion).toString());
     params.set('si', Math.round(this._sharpenIntensity).toString());
     params.set('hud', this._hudVariant);
+    // Only written when on, so a link without Sonar keeps its old form.
+    if (this._hudSonar) params.set('hs', '1');
     params.set('hv', this._hudVisible ? '1' : '0');
     params.set('dm', this._detectionMode);
     params.set('dd', Math.round(this._detectionDensity).toString());

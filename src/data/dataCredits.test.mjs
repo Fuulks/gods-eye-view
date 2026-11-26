@@ -25,6 +25,17 @@ test('every credit carries a unique key and some markup to render', () => {
   }
 });
 
+test("Canada's retired AQHI has no credit: no layer reads ECCC data", () => {
+  assert.deepEqual(
+    DATA_CREDITS.filter(
+      (entry) =>
+        entry.key === 'eccc-aqhi' ||
+        /AQHI|Environment and Climate Change Canada/.test(entry.html),
+    ).map((entry) => entry.key),
+    [],
+  );
+});
+
 test('adsbdb is credited and carries its published route-data restriction', () => {
   const credit = DATA_CREDITS.find((entry) => entry.key === 'adsbdb');
   assert.ok(
@@ -173,6 +184,18 @@ test('the NYC camera credit carries NYC DOT’s requested disclaimer', () => {
   assert.match(credit.html, /observe posted signage/);
 });
 
+test('the Ontario 511 camera credit carries the licence attribution statement', () => {
+  const credit = DATA_CREDITS.find((entry) => entry.key === 'ontario-511-cctv');
+  assert.ok(credit, 'Ontario 511 camera frames must be credited');
+  assert.ok(
+    credit.html.includes(
+      'Contains information licensed under the <a href="https://www.ontario.ca/page/open-government-licence-ontario"',
+    ),
+  );
+  assert.match(credit.html, />Open Government Licence – Ontario<\/a>/);
+  assert.match(credit.html, /Provided as is, without warranty/);
+});
+
 test("the Houston camera credit names TranStar's terms and the permission they require", () => {
   const credit = DATA_CREDITS.find((entry) => entry.key === 'houston-cctv');
   assert.ok(credit, 'Houston TranStar camera frames must be credited');
@@ -230,16 +253,6 @@ test('a credit with several links becomes one credit per link, in order', async 
       'https://data-nifc.opendata.arcgis.com/',
     ],
     ['Incident information: InciWeb', 'https://inciweb.wildfire.gov/'],
-  ]);
-  assert.deepEqual(read(html('eccc-aqhi')), [
-    [
-      'Air quality (AQHI): Environment and Climate Change Canada — MSC GeoMet (eccc-msc.github.io/open-data)',
-      'https://eccc-msc.github.io/open-data/',
-    ],
-    [
-      'ECCC Data Servers End-use Licence',
-      'https://eccc-msc.github.io/open-data/licence/readme_en/',
-    ],
   ]);
   assert.deepEqual(
     read(BHOTE_KOSHI_CREDIT.html)[1][0].slice(0, 15),
@@ -363,4 +376,12 @@ test('the always-on rail credit names live feeds only, never timetables', () => 
   assert.ok(rail);
   assert.match(rail.html, /realtime feeds/);
   assert.doesNotMatch(rail.html, /timetable|placed from/i);
+});
+
+test('the OpenAQ credit says where each station names its network and licence', () => {
+  const credit = DATA_CREDITS.find((entry) => entry.key === 'openaq');
+  assert.match(
+    credit.html,
+    /The originating network and its licence are named in each station’s details\.$/,
+  );
 });

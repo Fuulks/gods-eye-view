@@ -76,6 +76,14 @@ portable contract applies to the explicitly reviewed graphs above. Their layer
 controller remains the owner of rendering/cleanup until a focused extraction
 moves it. Do not label all ingestion modules platform-independent by filename.
 
+### Local package boundaries for forks
+
+Upstream ownership changes go only in `scripts/package-boundaries.json`. A fork
+can list extra `modules` and `external` entries for existing groups in the
+git-ignored `scripts/package-boundaries.local.json` and check them with
+`npm run check:boundaries -- --local`. Without `--local`, the check and CI read
+only the main file. Exports, runtimes and new groups belong in the main file.
+
 ## Compatibility entries and owners
 
 | Retained entry                                      | Owner and current reason                                                                                           |
@@ -150,7 +158,8 @@ Google credentials are resolved on each request; the default uses the existing
 server-key precedence, and callers may supply `resolveApiKey`.
 
 `gods-eye-view/sources/places` exports portable response projections for Google
-place results and OSRM route results/profile aliases. These functions own no
+place results and OSRM route results/profile aliases, and the turn-by-turn
+steps (`normalizeOsrmSteps`) Core's `/api/route` serves with `steps=1`. These functions own no
 credentials, requests, caches, environment loading, or rendering. Callers retain
 input validation and upstream-response acceptance. The boundary check builds
 this entry independently and rejects Node imports.
@@ -190,7 +199,9 @@ Callers retain their request admission and transport policy.
 
 `gods-eye-view/sources/firms-csv` exports the existing CSV parser, header
 recognition, acquisition-time conversion and trailing-day filter independently
-of the Node middleware. It imports no Node, DOM, rendering or network code.
+of the Node middleware, and `trailing24hWindow`, which returns that filter's
+records with the span of clock values over which they stay the same. It imports
+no Node, DOM, rendering or network code.
 The Node provider continues using the same implementation; contract fixtures
 cover malformed rows, acquisition times, empty feeds and the inclusive time
 window. The boundary gate checks each entry independently.
@@ -276,8 +287,8 @@ within the resulting scroll range. The left pass notifies its caller after
 alignment so the right pass can follow. Neither pass installs listeners, timers
 or observers; construction/import does no work. Scheduling, preference writes,
 share restoration and movement of controls between containers remain caller-owned.
-Existing helper imports from `cockpitMath.js` and `rightRailPolicy.js` remain
-compatible through re-exports.
+Existing imports of `resolveHudRailLayout` from `cockpitMath.js` remain
+compatible through a re-export.
 
 ### Adding a right-rail readout panel
 
@@ -349,10 +360,7 @@ reads the map center into a result after the action. The captured location stays
 fixed until another read; model changes resample that location, units reformat
 it, and × clears both reading and map marker.
 
-The timeline shows endpoint times and receives ticks, index, mode, playing,
-readout and disabled state. Its preview callback receives the tick and index and
-may return readout text; commits receive the same values after a 150 ms coalesced
-drag or final change. Feature adapters own data mapping and service subscriptions;
+Feature adapters own data mapping and service subscriptions;
 generic modules own DOM/listeners/timers and release them in `destroy()`.
 
 Keep persistence with panel chrome: collapse uses
@@ -360,7 +368,7 @@ Keep persistence with panel chrome: collapse uses
 not stored (`godsEyeView.v8.panelPos.<panelId>` stays reserved), and share state uses the registered panel id.
 Do not rename existing
 ids or reset persistence versions when adding a body. The WEATHER adapter is
-`src/ui/weatherPanel.js`; its observed-history selection remains transient.
+`src/ui/weatherPanel.js`; it keeps no time of its own and shows the world clock's.
 
 ## Visual input
 
@@ -780,8 +788,7 @@ palettes use `--gev-field-background`, `--gev-field-border-color`,
 `--gev-field-color` and `--gev-field-disabled-opacity`. Radio retains its own
 compact density and arrow space. CCTV owns calibration editor width in
 `cctv.css`; the shared inline density does not impose a feature-specific width.
-Cyber supplies a shared-field palette explicitly and keeps its legacy native
-field rules separate, so Radio's palette remains an intentional exception.
+Radio's palette remains an intentional exception.
 
 ### Read-only status badges
 

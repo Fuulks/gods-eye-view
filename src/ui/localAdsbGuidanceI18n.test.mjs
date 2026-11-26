@@ -21,7 +21,7 @@ test('Local ADS-B guidance hint is translated in the layer row', async () => {
     // operator's next step, so it rides the THIRD slot and the state still
     // says the row is on. (Changed with the meta-line rule: every row is
     // three short segments, so an operator reads the same shape everywhere.)
-    'ON · RTL-SDR · WebUSB · connect a receiver in Radio',
+    'RTL-SDR · WebUSB · connect a receiver in Radio',
   );
   for (const locale of ['es', 'ru']) {
     setLocale(locale);

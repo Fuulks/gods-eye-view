@@ -73,6 +73,17 @@ export interface FramePort {
   requestRender(reason: string): void;
   /** Keep drawing every frame until released. Holds are counted. */
   holdContinuous(reason: string): Release;
+  /**
+   * Hear the loop start drawing every frame (its first hold, whoever took
+   * it) and stop (its last released): `true` held, `false` not.
+   */
+  onHeldChange(cb: (held: boolean) => void): Off;
+  /**
+   * `holdChanges`: hear every hold taken or released, whoever holds
+   * (diagnostics' `holds` has changed), where `onHeldChange` hears only the
+   * first hold and the last release.
+   */
+  onHoldsChange?(cb: () => void): Off;
   mode(): 'demand' | 'continuous';
   diagnostics(): FrameDiagnostics;
   /** Stop ticking while the page is hidden; resume on `false`. */

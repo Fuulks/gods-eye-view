@@ -941,13 +941,13 @@ test('a Global Context echo bracket is drawn outside its contact bracket and dim
   }
 });
 
-test('under the Cyber sonar sweep an echo is never brighter than its own bracket', () => {
+test('under the sonar sweep an echo is never brighter than its own bracket', () => {
   const env = installEnvironment();
-  // The cyber theme with its HUD open turns the contact sonar on; its sweep
-  // dims brackets it is not passing over.
+  // Sonar on with its HUD open turns the contact sonar on; its sweep dims
+  // brackets it is not passing over.
   env.document.documentElement = {
     // The lowest sweep floor, so dimmed brackets drop a whole alpha band.
-    dataset: { uiTheme: 'cyber', cyberSonarOpacity: '35' },
+    dataset: { cyberSonar: 'on', cyberSonarOpacity: '35' },
     style: { setProperty() {}, removeProperty() {} },
   };
   const hud = env.document.createElement('div');
@@ -1252,6 +1252,40 @@ test('civilian and military AIR brackets cover front, left, and right at Sparse 
       destroyWorldOverlay();
       env.cleanup();
     }
+  }
+});
+
+test('vessels, like aircraft, are asked for every contact they draw', () => {
+  const env = installEnvironment({ width: 900, height: 600, dpr: 1 });
+  const asked = new Map();
+  const layer = (id) => ({
+    id,
+    getDetectableObjects(options) {
+      asked.set(id, options.maxCount);
+      return [];
+    },
+  });
+  try {
+    initWorldOverlay(env.viewer);
+    initDetection(
+      env.viewer,
+      ['flights', 'military', 'ais-live-vessels', 'traffic'].map(layer),
+      () => {},
+    );
+    setMode('DENSE');
+    settleFrame(env);
+    assert.equal(asked.get('flights'), Number.POSITIVE_INFINITY);
+    assert.equal(asked.get('military'), Number.POSITIVE_INFINITY);
+    assert.equal(
+      asked.get('ais-live-vessels'),
+      Number.POSITIVE_INFINITY,
+      'a sample of a worldwide vessel list leaves most ships in view unbracketed',
+    );
+    assert.ok(Number.isFinite(asked.get('traffic')), 'other layers keep the cap');
+  } finally {
+    destroyDetection();
+    destroyWorldOverlay();
+    env.cleanup();
   }
 });
 

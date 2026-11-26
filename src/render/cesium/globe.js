@@ -20,9 +20,8 @@ import { provideUnboundGlobe } from '../rendererOf.js';
 import { isBaseTileset, markBaseTileset } from '../baseTilesets.js';
 import { listenerList, uncaught } from './common.js';
 import { createCesiumImagery } from './imagery.js';
-import { attributionText } from './vectorBase.js';
-import { loadVectorStyle } from '../vectorBase/index.js';
 import { createTerrainRetryPolicy } from '../../maps/terrainRetry.js';
+import { tileFetchResource, trackTileRequests } from './terrainTiles.js';
 
 // The base marks live outside the adapter, so code that is not Cesium's can
 // mark a base; they are re-exported here for the code that still is.
@@ -59,16 +58,35 @@ async function terrainProvider(spec, { worldDataToken }) {
       throw new TypeError('Quantized-mesh terrain needs its url');
     // Busy hosts are asked again as the keyless terrain is
     // (`terrainRetry.js`); every tile's resource inherits the policy.
-    const policy = createTerrainRetryPolicy();
-    const resource = new Cesium.Resource({
+    const policy = createTerrainRetryPolicy({
+      // One line per cooldown window, not per tile: a burst throttles dozens.
+      onThrottle: ({ statusCode, delayMs, inWindow }) => {
+        if (inWindow === 1)
+          console.warn(
+            `[MapStack] terrain answered ${statusCode}; retrying throttled tiles after ${Math.round(delayMs)} ms`,
+          );
+      },
+    });
+    const options = {
       url: spec.url,
       retryCallback: policy.retryCallback,
       retryAttempts: policy.retryAttempts,
-    });
-    return Cesium.CesiumTerrainProvider.fromUrl(resource, {
+    };
+    if (spec.fetchTile !== undefined && typeof spec.fetchTile !== 'function')
+      throw new TypeError('Quantized-mesh terrain fetchTile is a function');
+    // With `fetchTile`, Cesium still reads `layer.json` at the url; each
+    // tile's bytes come from `fetchTile`.
+    const tiles = new WeakMap();
+    const resource = spec.fetchTile
+      ? tileFetchResource(options, spec.fetchTile, (request) =>
+          request ? tiles.get(request) : undefined,
+        )
+      : new Cesium.Resource(options);
+    const provider = await Cesium.CesiumTerrainProvider.fromUrl(resource, {
       requestVertexNormals: spec.requestVertexNormals ?? false,
       requestWaterMask: false,
     });
+    return spec.fetchTile ? trackTileRequests(provider, tiles) : provider;
   }
   throw new TypeError(`Unknown terrain kind: ${spec.kind}`);
 }
@@ -104,6 +122,19 @@ czm_material czm_getMaterial(czm_materialInput materialInput)
 /** The last `surfaceVersion` any globe port handed out. */
 let surfaceVersions = 0;
 
+/** Each scene's photoreal tileset as a globe port holds it, shown or hidden. */
+const photorealTilesets = new WeakMap();
+
+/**
+ * The Cesium photoreal tileset a globe port over `scene` holds: shown, or
+ * hidden and kept to show again; null when it holds none. For QA scripts.
+ * @param {object} scene
+ * @returns {object | null}
+ */
+export function cesiumPhotorealOf(scene) {
+  return photorealTilesets.get(scene)?.() ?? null;
+}
+
 /**
  * @param {object} widget A Cesium `CesiumWidget` or `Viewer`.
  * @param {{capabilities: ReadonlySet<string>,
@@ -111,7 +142,8 @@ let surfaceVersions = 0;
  *   report?: (error: unknown) => void,
  *   credits?: import('../contract/credits').CreditsPort | null,
  *   credentials?: {googleApiKey?: string, googleTokens?: () => Promise<string>,
- *     worldDataToken?: string}}} options
+ *     worldDataToken?: string},
+ *   loadPhotoreal?: typeof loadPhotorealisticTileset}} options
  * @returns {{port: import('../contract/globe').GlobePort, dispose: () => void}}
  */
 export function createCesiumGlobe(
@@ -122,6 +154,8 @@ export function createCesiumGlobe(
     report = uncaught,
     credits = null,
     credentials = {},
+    // Tests load their own.
+    loadPhotoreal = loadPhotorealisticTileset,
   },
 ) {
   const scene = widget.scene;
@@ -130,19 +164,23 @@ export function createCesiumGlobe(
 
   // --- Base ------------------------------------------------------------------
 
-  /** The photoreal tileset this port loaded, if any. */
+  /** The photoreal tileset this port loaded, if any, and its spec. */
   let photoreal = null;
+  let photorealSpec = null;
   let photorealStatus = { route: 'none' };
+  /**
+   * The photoreal tileset last turned off, kept hidden with the spec and
+   * status it loaded with: that same spec shows it again at once, without
+   * loading it anew (Google counts each load).
+   */
+  let parked = null;
+  photorealTilesets.set(scene, () => photoreal ?? parked?.tileset ?? null);
   let photorealGen = 0;
   let terrainGen = 0;
   let baseGen = 0;
   /** The `setBase` call whose base is drawn now (a failed one changes none). */
   let drawnGen = 0;
-  /** Aborts the style load of the `setBase` in flight, if any. */
-  let baseLoad = null;
   let baseCredit = null;
-  // The vector base's sources' credits.
-  const vectorCredits = [];
 
   /**
    * Every 3D tileset the scene holds, into `found` (emptied first): the
@@ -178,31 +216,74 @@ export function createCesiumGlobe(
     worldDataToken: () => credentials.worldDataToken,
   });
 
-  function removePhotoreal() {
-    if (!photoreal) return;
-    const tileset = photoreal;
-    photoreal = null;
-    // The layers draped on it move off before it takes them with it.
-    imagery.sync();
+  function destroyTileset(tileset) {
     if (!tileset.isDestroyed() && !scene.primitives.remove(tileset))
       tileset.destroy();
   }
 
+  function removePhotoreal() {
+    if (!photoreal) return;
+    const tileset = photoreal;
+    photoreal = null;
+    photorealSpec = null;
+    // The layers draped on it move off before it takes them with it.
+    imagery.sync();
+    destroyTileset(tileset);
+  }
+
+  /** Hide the photoreal tileset, kept for its spec to show again. */
+  function parkPhotoreal() {
+    if (!photoreal) return;
+    if (parked) destroyTileset(parked.tileset);
+    parked = {
+      spec: photorealSpec,
+      status: photorealStatus,
+      tileset: photoreal,
+    };
+    photoreal.show = false;
+    photoreal = null;
+    photorealSpec = null;
+    imagery.sync();
+  }
+
+  /** Show the parked tileset again when `spec` is the one it loaded with. */
+  function unparkPhotoreal(spec) {
+    const kept = parked;
+    if (!kept || kept.spec !== spec || kept.tileset.isDestroyed()) return null;
+    parked = null;
+    removePhotoreal();
+    photoreal = kept.tileset;
+    photorealSpec = spec;
+    photoreal.show = true;
+    photorealStatus = kept.status;
+    imagery.sync();
+    requestRender('base');
+    return photorealStatus;
+  }
+
   async function setPhotoreal(spec) {
     const gen = ++photorealGen;
-    removePhotoreal();
-    photorealStatus = { route: 'none' };
     if (!spec || !can('photoreal')) {
+      if (spec) removePhotoreal();
+      else parkPhotoreal();
       photorealStatus = { route: 'none' };
       requestRender('base');
       return photorealStatus;
     }
+    const shown = unparkPhotoreal(spec);
+    if (shown) return shown;
+    removePhotoreal();
+    if (parked) {
+      destroyTileset(parked.tileset);
+      parked = null;
+    }
+    photorealStatus = { route: 'none' };
     // The spec's own route first: its key, else its tokens, else the
     // renderer's credentials.
     const googleApiKey =
       spec.key ?? (spec.token ? '' : (credentials.googleApiKey ?? ''));
     const token = spec.token ?? credentials.googleTokens;
-    const result = await loadPhotorealisticTileset(Cesium, {
+    const result = await loadPhotoreal(Cesium, {
       googleApiKey,
       // A renewal names the token it replaces.
       googleTokens: token ? { token: (options) => token(options) } : null,
@@ -224,6 +305,7 @@ export function createCesiumGlobe(
       };
     } else {
       photoreal = scene.primitives.add(result.tileset);
+      photorealSpec = spec;
       photorealStatus = { route: ROUTES[result.route] ?? 'google' };
     }
     imagery.sync();
@@ -252,45 +334,16 @@ export function createCesiumGlobe(
     // The last call wins: one superseded (or disposed) before its base
     // changes changes nothing and resolves with the base as it stands.
     const gen = ++baseGen;
-    baseLoad?.abort();
-    baseLoad = null;
-    const current = () => gen === baseGen && !disposed;
     const superseded = () => ({
       photoreal: photorealStatus,
       imagery: [],
       settled: false,
     });
     if (disposed) return superseded();
-    // The style loads before the base changes: one that fails changes
-    // nothing.
-    let style = null;
-    if (base.vector) {
-      const load = new AbortController();
-      baseLoad = load;
-      try {
-        style = await loadVectorStyle(base.vector.styleUrl, undefined, {
-          signal: load.signal,
-        });
-      } catch (error) {
-        if (!current()) return superseded();
-        throw error;
-      } finally {
-        if (baseLoad === load) baseLoad = null;
-      }
-      if (!current()) return superseded();
-    }
     drawnGen = gen;
     for (const handle of imagery.list()) handle.remove();
     baseCredit?.();
     baseCredit = base.credit && credits ? credits.addStatic(base.credit) : null;
-    for (const off of vectorCredits.splice(0)) off();
-    if (style) {
-      // Under any imagery the base also gives.
-      imagery.add({ kind: 'vectorStyle', style }, undefined, { base: true });
-      if (credits)
-        for (const text of style.attribution.map(attributionText))
-          if (text) vectorCredits.push(credits.addStatic({ text }));
-    }
     const loads = [];
     if (base.photoreal !== undefined) loads.push(setPhotoreal(base.photoreal));
     if (base.terrain !== undefined) loads.push(setTerrain(base.terrain));
@@ -303,9 +356,8 @@ export function createCesiumGlobe(
     return {
       photoreal: photorealStatus,
       imagery: layers,
-      // Settled when its base is still the one drawn: a later call changes
-      // the base only once its style loads, and one whose style fails never
-      // does (see the contract's setBase).
+      // Settled when its base is still the one drawn (see the contract's
+      // setBase).
       settled: gen === drawnGen && !disposed && isSettled('base'),
     };
   }
@@ -616,10 +668,12 @@ export function createCesiumGlobe(
       if (disposed) return;
       disposed = true;
       photorealGen += 1;
+      if (parked) {
+        destroyTileset(parked.tileset);
+        parked = null;
+      }
       terrainGen += 1;
       baseGen += 1;
-      baseLoad?.abort();
-      baseLoad = null;
       for (const off of removers) off();
       shading = null;
       dropShadingMaterial();
@@ -628,7 +682,6 @@ export function createCesiumGlobe(
       imagery.dispose();
       baseCredit?.();
       baseCredit = null;
-      for (const off of vectorCredits.splice(0)) off();
     },
   };
 }

@@ -5,10 +5,12 @@ import {
   transitDetectionClass,
   transitDetectionId,
   transitDetectionMetric,
+  vehicleReportTimeMs,
 } from './policy.js';
 import {
   TRANSIT_ENABLED_FEEDS,
   getRegisteredTransitFeed,
+  transitRouteLabel,
 } from '../../data/transitFeeds.js';
 import { transitModeTier } from '../../data/transitPresetStyle.js';
 import { t, tn } from '../../i18n/index.js';
@@ -16,6 +18,15 @@ import {
   TRANSIT_STATION_DESCRIPTION,
   transitStationSegments,
 } from './stationModel.js';
+import { displayMotion } from './movement.js';
+
+/** The display's motion word as a record field for the Context card. */
+const MOTION_FIELD = Object.freeze({
+  'EN ROUTE': 'moving',
+  STOPPED: 'stopped',
+  WAITING: 'waiting',
+  'NO FIX': 'no-fix',
+});
 
 /**
  * The row's count, split into the two populations the row draws.
@@ -253,10 +264,14 @@ export function createQueries({ state, parts }) {
      * query engine. On demand only (once per spoken query); [] while the
      * layer is off.
      * @param {number} [maxCount=Infinity] Most records to return.
-     * @returns {Array<Object>} {id, label, routeId, mode, lat, lon, speedMps, courseDeg, status, occupancy}.
+     * @returns {Array<Object>} {id, label, routeId, mode, lat, lon, speedMps, courseDeg, status, occupancy},
+     *   plus `key` (the layer's own vehicle key, which a map click carries),
+     *   `route`, `operator`, `place`, `observedMs` and `motion` (what the
+     *   display shows: moving, stopped, waiting or no-fix) for the Context card.
      */
     getAnalystRecords(maxCount = Infinity) {
       if (!state._enabled) return [];
+      const now = Date.now();
       const num = (v) => (Number.isFinite(v) ? v : null);
       const result = [];
       for (const entry of state._vehicles.values()) {
@@ -264,6 +279,8 @@ export function createQueries({ state, parts }) {
         const record = entry.record || {};
         if (!Number.isFinite(record.lat) || !Number.isFinite(record.lon))
           continue;
+        const feed = feedForEntry(state, entry);
+        const reportedMs = vehicleReportTimeMs(record, entry.fetchedAt);
         result.push({
           id: record.label || record.id || entry.key,
           label: record.label || null,
@@ -282,28 +299,15 @@ export function createQueries({ state, parts }) {
           shortCode: null,
           uic: null,
           segment: null,
-        });
-      }
-      // The French passenger-station network the same row draws. Its rows are
-      // station records, not vehicle records, so they carry the station's own
-      // fields rather than a vehicle's.
-      for (const station of drawnStations()) {
-        if (result.length >= maxCount) break;
-        result.push({
-          id: station.id,
-          label: station.name,
-          routeId: null,
-          mode: 'station',
-          lat: station.lat,
-          lon: station.lon,
-          speedMps: null,
-          courseDeg: null,
-          status: station.shortCode || null,
-          occupancy: null,
-          name: station.name,
-          shortCode: station.shortCode,
-          uic: station.uic,
-          segment: station.segment,
+          key: entry.key,
+          route:
+            record.routeId && feed
+              ? transitRouteLabel(feed, record.routeId)
+              : record.routeId || null,
+          operator: feed?.name || null,
+          place: feed?.region || null,
+          observedMs: Number.isFinite(reportedMs) ? reportedMs : null,
+          motion: MOTION_FIELD[displayMotion(entry, now).word] || null,
         });
       }
       return result;

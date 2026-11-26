@@ -13,12 +13,12 @@
  * absent, never stubbed.
  */
 import * as Cesium from 'cesium';
-import { createCesiumCamera } from './camera.js';
+import { createCesiumCamera, createPointsVisibility } from './camera.js';
 import { createControlledCamera } from './controlledCamera.js';
 import { listenerList, toCartesian, uncaught } from './common.js';
 import { createCesiumCredits } from './credits.js';
 import { createCesiumDraw } from './draw.js';
-import { GPU_ICON_CAPABILITIES } from './gpuIcons.js';
+import { gpuIconCapabilities } from './gpuIcons.js';
 import { createCesiumEffects } from './effects.js';
 import { renderNow, willDraw } from './frame.js';
 import { createCesiumGlobe } from './globe.js';
@@ -49,10 +49,10 @@ const GLOBE_CAPABILITIES = [
   'imageHooks',
   // Timed imagery: a layer a frame, prefetched unseen (`imagery.js`).
   'imageryFrames',
+  // Timed imagery handed over as finished images (`imageryFrames.js`).
+  'imageryDecoded',
   'surfaceIdentity',
   'surfaceShading',
-  // A MapLibre style's vector tiles, painted as imagery (`vectorBase.js`).
-  'vectorBase',
   'globeVisibility',
 ];
 
@@ -70,22 +70,37 @@ const GLOBE_CAPABILITIES = [
 export function cesiumCapabilities(scene, only) {
   const all = [
     'models',
+    // Moving parts posed in a custom shader per posed model (`drawModels.js`).
+    'modelParts',
     // Cesium scatters drawn models through the atmosphere wherever the
     // scene draws fog (its models' atmosphere stage).
     'modelAtmosphere',
+    // A model item's nodes, written to the model's runtime nodes.
+    'modelNodes',
     'quads',
     'meshes',
     // Raster shells; other field kinds are refused.
     'fields',
+    // Lines faded with age in their material, from a floating-point
+    // texture of their points' times (`draw.js`).
+    // And cut by time there, within a span of the scene clock.
+    ...(scene?.context?.floatingPointTexture
+      ? ['lineAgeFade', 'lineTimeWindow']
+      : []),
+    // Lines in runs, a piece a run (`draw.js`).
+    'lineBreaks',
     'followFrame',
+    'pointVisibility',
     // Cesium's AUTODETECT tracking frame (`follow.js`).
     'followAutodetect',
     'cameraChangeThreshold',
+    // Every hold and release is told (`onHoldsChange`).
+    'holdChanges',
     // The zoom-out guard reads the scene's own controller and frame events.
     ...(scene?.screenSpaceCameraController && scene?.preRender
       ? ['keepEarthFramed']
       : []),
-    ...GPU_ICON_CAPABILITIES,
+    ...gpuIconCapabilities(scene),
     // Icon sets cluster on screen, on billboards and the GPU (`draw.js`).
     'cluster',
     'styles',
@@ -116,22 +131,18 @@ const destroyedError = () => new Error('renderer destroyed');
  * @param {{capabilities: ReadonlySet<string>, credentials?: object,
  *   cameraController?: import('../contract/camera').CameraControllerFactory,
  *   now?: () => number,
- *   date?: () => number,
- *   idleFps?: number}} options
+ *   date?: () => number}} options
  *   The renderer's capabilities, which gate the members that need them, and
  *   the credentials its globe loads photoreal tiles and world data with
  *   (`googleApiKey`, `googleTokens`, `worldDataToken`). `now` is the clock
  *   each tick reads (`performance.now` by default; a test's virtual one);
  *   `date`, the epoch ms a `live` motion clock reads (the system clock's by
- *   default). With `idleFps`, the loop ticks at most that often while no
- *   hold is out (Cesium ticks its clock and every update listener each
- *   animation frame even when it draws nothing), and at the display's rate
- *   while one is; `setTargetFps` then caps both, and the loop starts with no
- *   cap of its own. Without it, the widget's own rate is the cap.
- *   With
- *   `cameraController`, the camera port is that controller's over Cesium's
- *   camera (`controlledCamera.js`); the ports then have `attachInput` and
- *   `suspendCamera`, which the renderer's input port is wired with.
+ *   default). The loop's rate starts as the widget's own; once set, it is
+ *   the lower of `setTargetFps`'s and the quality port's `targetFps` cap.
+ *   With `cameraController`, the camera port is that controller's over
+ *   Cesium's camera (`controlledCamera.js`); the ports then have
+ *   `attachInput` and `suspendCamera`, which the renderer's input port is
+ *   wired with.
  */
 export function createCesiumPorts(
   widget,
@@ -141,7 +152,6 @@ export function createCesiumPorts(
     cameraController,
     now: clockNow = () => performance.now(),
     date = null,
-    idleFps = 0,
   },
 ) {
   const scene = widget.scene;
@@ -290,27 +300,33 @@ export function createCesiumPorts(
 
   // Holds keep the loop drawing every frame; counted per reason.
   const holds = new Map();
+  // Told when the first hold is taken and the last released.
+  const heldListeners = listenerList(report);
+  // Told every hold taken or released.
+  const holdsListeners = listenerList(report);
   function applyHolds() {
+    holdsListeners.fire();
     const continuous = holds.size > 0;
-    if (idleFps > 0) applyRate();
     if (scene.requestRenderMode === !continuous) return;
     scene.requestRenderMode = !continuous;
-  }
-  /** The loop's rate: the cap, and at most `idleFps` while nothing holds. */
-  function applyRate() {
-    const idle = holds.size === 0 && idleFps > 0;
-    const rate =
-      idle && !(targetFps > 0 && targetFps < idleFps) ? idleFps : targetFps;
-    widget.targetFrameRate = rate || undefined;
+    heldListeners.fire(continuous);
   }
   // On demand means drawn when asked, held or the view changed: never
   // because scene time moved on by itself. With no holds yet, it starts so.
   scene.maximumRenderTimeChange = Infinity;
   scene.requestRenderMode = true;
   let suspended = false;
-  let targetFps =
-    idleFps <= 0 && widget.targetFrameRate > 0 ? widget.targetFrameRate : 0;
-  if (idleFps > 0) applyRate();
+  // The rate `setTargetFps` asks for (the application's), and the quality
+  // port's cap; the loop draws at the lower of those set.
+  let targetFps = widget.targetFrameRate > 0 ? widget.targetFrameRate : 0;
+  let qualityFps = 0;
+  function applyRate() {
+    const rate =
+      targetFps > 0 && qualityFps > 0
+        ? Math.min(targetFps, qualityFps)
+        : targetFps || qualityFps;
+    widget.targetFrameRate = rate || undefined;
+  }
 
   // Pending one-shot renders; disposal rejects them rather than leave them
   // attached to a scene that will not render again.
@@ -369,6 +385,10 @@ export function createCesiumPorts(
         if (holds.size === 0) scene.requestRender();
       };
     },
+    onHeldChange: (cb) => heldListeners.on(cb),
+    ...(capabilities.has('holdChanges')
+      ? { onHoldsChange: (cb) => holdsListeners.on(cb) }
+      : {}),
     /** Cesium can idle, so it draws on demand. */
     mode: () => 'demand',
     diagnostics: () => ({
@@ -429,6 +449,7 @@ export function createCesiumPorts(
     capabilities,
     requestRender: (reason) => frame.requestRender(reason),
     date,
+    now: clockNow,
   });
   const { port: draw, sets, tilesets } = drawPart;
 
@@ -482,6 +503,8 @@ export function createCesiumPorts(
           : {}),
       });
   const cameraPort = cameraPart.port;
+  if (capabilities.has('pointVisibility'))
+    cameraPort.visiblePoints = createPointsVisibility(scene, camera);
   measureCameraChanged = cameraPart.measureChanged ?? null;
   const effectsPart = createCesiumEffects(scene, {
     capabilities,
@@ -494,6 +517,13 @@ export function createCesiumPorts(
     report,
     tickStarted: () => tickNow,
     gl: capabilities.has('gpuTiming') ? webglContext(scene) : null,
+    fpsCap: {
+      get: () => qualityFps,
+      set(fps) {
+        qualityFps = fps > 0 ? fps : 0;
+        applyRate();
+      },
+    },
   });
 
   const creditsPart = createCesiumCredits({
@@ -837,6 +867,8 @@ export function createCesiumPorts(
       // A listener that disposes the renderer stops the rest of its event.
       for (const list of Object.values(rendererListeners)) list.clear();
       for (const list of Object.values(frameListeners)) list.clear();
+      heldListeners.clear();
+      holdsListeners.clear();
       drawPart.dispose();
       cameraPart.dispose();
       creditsPart.dispose();
